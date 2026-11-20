@@ -21,9 +21,11 @@ def test_icon_image_scales_for_the_exe_icon():
 def test_second_instance_is_refused():
     from ginga.__main__ import _single_instance
 
-    first = _single_instance()
+    # Own mutex name: the real app may be running on the dev machine.
+    name = r"Local\ginga-wallpaper-test"
+    first = _single_instance(name)
     assert first is not None
-    assert _single_instance() is None
+    assert _single_instance(name) is None
 
 
 def test_about_text_credits_author_repo_and_version():

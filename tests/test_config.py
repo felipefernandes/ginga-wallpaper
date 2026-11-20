@@ -79,3 +79,22 @@ def test_wrong_types_are_ignored(tmp_path: Path):
     assert cfg.render.fps == 30
     assert cfg.render.pause_when_fullscreen is True
     assert cfg.wave.speed == 2.0
+
+
+def test_audio_is_off_by_default_and_round_trips(tmp_path: Path):
+    from ginga.config import AudioSettings
+
+    path = tmp_path / "config.toml"
+    assert load_config(path).audio == AudioSettings(enabled=False, sensitivity=1.0)
+    cfg = load_config(path)
+    cfg.audio.enabled = True
+    cfg.audio.sensitivity = 1.8
+    save_config(cfg, path)
+    assert load_config(path).audio == AudioSettings(enabled=True, sensitivity=1.8)
+
+
+def test_invalid_audio_values_fall_back(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    path.write_text('[audio]\nenabled = "yes"\nsensitivity = 2\n', encoding="utf-8")
+    cfg = load_config(path)
+    assert cfg.audio.enabled is False and cfg.audio.sensitivity == 2.0

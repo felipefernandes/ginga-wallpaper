@@ -33,6 +33,12 @@ class WaveSettings:
 
 
 @dataclass
+class AudioSettings:
+    enabled: bool = False      # "modo berimbau": react to the PC's audio output
+    sensitivity: float = 1.0   # multiplier on the analysed audio (0.3..3)
+
+
+@dataclass
 class Offset:
     x: int = 0
     y: int = 0
@@ -42,6 +48,7 @@ class Offset:
 class Config:
     render: RenderSettings = field(default_factory=RenderSettings)
     wave: WaveSettings = field(default_factory=WaveSettings)
+    audio: AudioSettings = field(default_factory=AudioSettings)
     # Calibration offset per monitor id (see layout.monitor_id).
     offsets: dict[str, Offset] = field(default_factory=dict)
 
@@ -83,6 +90,7 @@ def load_config(path: Path | None = None) -> Config:
     cfg = Config(
         render=_fill(RenderSettings, data.get("render")),
         wave=_fill(WaveSettings, data.get("wave")),
+        audio=_fill(AudioSettings, data.get("audio")),
         offsets={
             str(key): _fill(Offset, value)
             for key, value in (data.get("offsets") or {}).items()

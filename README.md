@@ -7,30 +7,37 @@ where the screens are **not physically aligned**.
 
 ![Calibration preview](docs/calibration.png)
 
-## Features (v1.0)
+## Features
 
 - Procedural light-wave shader (GPU, no video decoding)
+- **Modo berimbau** (v2): the wave dances to whatever the PC plays. Its spikes
+  become a live spectrum across all monitors (bass on the left), bass swells
+  the wave and loudness pulses the glow. Off by default; ~2.5% of one CPU
+  core when on, zero while a game is fullscreen
 - One continuous canvas across all monitors
 - **Monitor alignment**: a visual mode with guide lines lines up monitors that
   sit at different heights on the desk, so the image flows across the bezel
 - Lives behind the desktop icons (Windows 11 24H2+ and older layouts)
 - Pauses itself while a game or video runs fullscreen
 - Tray menu: pause, settings, align monitors, about, quit
-- Settings window with live preview (speed, wave height, glow, texture, FPS)
-  and "start with Windows"
-- Single standalone `ginga.exe`, no install needed
+- Settings window with live preview (speed, wave height, glow, texture,
+  audio mode and sensitivity, FPS) and "start with Windows"
+- Portable: unzip and run, no installer
 
 ## Install
 
-1. Download `ginga.exe` from the [latest release](https://github.com/felipefernandes/ginga-wallpaper/releases/latest).
-2. Put it in a permanent folder (e.g. `%LOCALAPPDATA%\Programs\ginga`) and run it.
-   Windows SmartScreen may warn because the exe is not signed: *More info → Run anyway*.
+1. Download `ginga-<version>-windows.zip` from the [latest release](https://github.com/felipefernandes/ginga-wallpaper/releases/latest).
+2. Extract the `ginga` folder somewhere permanent (e.g. `%LOCALAPPDATA%\Programs\ginga`)
+   and run `ginga.exe` inside it (keep the `_internal` folder next to it).
+   The exe is not code-signed yet, so Windows SmartScreen may warn (*More info → Run anyway*)
+   and some antivirus heuristics may flag it as a false positive; the source and the
+   build script are in this repo.
 3. Right-click the wave icon in the tray:
    - **Alinhar monitores…** (align monitors): arrows move the image on the
      selected monitor until the guide lines are continuous (Shift = 10 px,
      Tab = next monitor, Space = freeze the wave, Enter = save, Esc = cancel).
-   - **Configurações…** (settings): tweak the look and tick
-     *Iniciar com o Windows* to start with Windows.
+   - **Configurações…** (settings): tweak the look, tick *Reagir ao som do PC*
+     for the audio mode, and *Iniciar com o Windows* to start with Windows.
 
 Logs: `%APPDATA%\ginga\ginga.log`.
 
@@ -46,7 +53,7 @@ pytest
 python -m ginga                 # run the app from source
 ```
 
-Build `dist/ginga.exe`:
+Build `dist/ginga/ginga.exe` and the release zip:
 
 ```bash
 pip install -e ".[build]"
@@ -81,7 +88,7 @@ y = 120
 
 ## Roadmap
 
-- **v2**: audio-reactive mode ("modo berimbau"): the wave dances to the PC's audio.
+- ~~**v2**: audio-reactive mode ("modo berimbau")~~ done in 2.0.
 - **v3**: use any wallpaper (images first, then video/GIF) spanning the
   monitors with the same alignment.
 

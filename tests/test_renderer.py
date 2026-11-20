@@ -97,3 +97,26 @@ class TestPlanViewports:
         plan = plan_viewports(layout, desktop_bounds(monitors))
         # GL y is bottom-up: a 1080 px monitor at the top of a 1440 px window starts at 360.
         assert plan[1][0] == (2560, 360, 1920, 1080)
+
+
+class TestAudioMix:
+    def test_ease_moves_toward_target_without_overshoot(self):
+        from ginga.renderer import ease
+
+        assert ease(0.0, 1.0, dt=0.0, tau=0.4) == 0.0
+        half = ease(0.0, 1.0, dt=0.4 * 0.6931, tau=0.4)  # one half-life
+        assert half == pytest.approx(0.5, abs=1e-3)
+        assert ease(0.0, 1.0, dt=100.0, tau=0.4) == pytest.approx(1.0)
+        assert ease(1.0, 0.0, dt=100.0, tau=0.4) == pytest.approx(0.0)
+
+    def test_audio_counts_only_when_enabled_and_audible(self):
+        import numpy as np
+
+        from ginga.audio import AudioFeatures
+        from ginga.renderer import audio_target
+
+        music = AudioFeatures(np.full(128, 0.5, dtype=np.float32), 0.5, 0.5)
+        silence = AudioFeatures.silent()
+        assert audio_target(True, music) == 1.0
+        assert audio_target(False, music) == 0.0
+        assert audio_target(True, silence) == 0.0  # back to the idle animation

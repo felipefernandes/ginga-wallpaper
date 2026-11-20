@@ -22,15 +22,27 @@ def command(frozen: bool | None = None, executable: str | None = None) -> str:
     return f'"{pythonw}" -m ginga'
 
 
-def is_enabled(key: str = RUN_KEY) -> bool:
+def registered_command(key: str = RUN_KEY) -> str | None:
     import winreg
 
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key) as k:
-            winreg.QueryValueEx(k, VALUE_NAME)
-        return True
+            return str(winreg.QueryValueEx(k, VALUE_NAME)[0])
     except OSError:
-        return False
+        return None
+
+
+def is_enabled(key: str = RUN_KEY) -> bool:
+    return registered_command(key) is not None
+
+
+def apply(wanted: bool, key: str = RUN_KEY) -> None:
+    """Settings "Save": enabling always rewrites the command, so a path left
+    by an older install (e.g. the v1.0 one-file exe) points to this one."""
+    if wanted:
+        set_enabled(True, key)
+    elif is_enabled(key):
+        set_enabled(False, key)
 
 
 def set_enabled(enabled: bool, key: str = RUN_KEY) -> None:

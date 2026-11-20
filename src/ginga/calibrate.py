@@ -90,6 +90,7 @@ def _hud_image(text: str):
 
 class CalibrationRenderer(Renderer):
     interactive = True
+    audio_supported = False  # a steady wave is easier to line up
 
     def __init__(self, config: Config):
         super().__init__(copy.deepcopy(config), pause_check=lambda: False)

@@ -12,6 +12,13 @@ uniform float u_amplitude;
 uniform float u_glow;
 uniform float u_spikes;
 
+// "Modo berimbau": everything audio-driven is scaled by u_audio, so 0.0
+// renders exactly the idle animation and the switch between them is smooth.
+uniform float     u_audio;     // 0 = idle animation, 1 = fully audio-driven
+uniform float     u_bass;      // 0..1, swells the wave
+uniform float     u_level;     // 0..1, pulses the glow
+uniform sampler2D u_spectrum;  // N x 1 bands across the canvas, bass on the left
+
 in vec2 v_uv;
 out vec4 f_color;
 
@@ -36,7 +43,7 @@ float wave(float u, float t) {
     float y = 0.05 * sin(u * TAU * 3.5 - t * 0.6)
             + 0.012 * sin(u * TAU * 7.0 + t * 0.9)
             + 0.008 * sin(u * TAU * 1.3 + t * 0.25);
-    return y * breathe * u_amplitude;
+    return y * breathe * u_amplitude * (1.0 + 1.6 * u_bass * u_audio);
 }
 
 void main() {
@@ -57,7 +64,7 @@ void main() {
 
     // Bright thin core + soft glow.
     float core = smoothstep(0.0022, 0.0, d);
-    float glow = exp(-d * 40.0) * 0.7 * u_glow;
+    float glow = exp(-d * 40.0) * 0.7 * u_glow * (1.0 + 0.9 * u_level * u_audio);
 
     // Vertical "sound" spikes: 2px columns with flickering heights.
     float column = floor(px.x / 2.0);
@@ -67,6 +74,10 @@ void main() {
                         smoothstep(0.0, 1.0, fract(tf)));
     float envelope = 0.35 + 0.65 * noise(u * 14.0 + t * 0.3);
     float spikeLen = 0.17 * pow(flicker, 3.0) * envelope;
+    // Audio: each column shows its frequency band; a little flicker keeps texture.
+    float band = texture(u_spectrum, vec2(u, 0.5)).r;
+    float audioLen = 0.24 * pow(band, 1.4) * (0.55 + 0.45 * flicker);
+    spikeLen = mix(spikeLen, audioLen, u_audio);
     float spike = spikeLen > 0.0 ? pow(clamp(1.0 - d / spikeLen, 0.0, 1.0), 2.0) : 0.0;
     spike *= 0.75 * u_spikes;
 
