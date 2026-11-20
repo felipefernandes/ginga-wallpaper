@@ -37,6 +37,7 @@ where the screens are **not physically aligned**.
    Nothing is code-signed yet, so Windows SmartScreen may warn (*More info → Run anyway*)
    and some antivirus heuristics may flag it as a false positive; the source and the
    build script are in this repo.
+
    Upgrading: run the new setup; it closes the running app and replaces the old version.
 2. Right-click the wave icon in the tray:
    - **Alinhar monitores…** (align monitors): arrows move the image on the
