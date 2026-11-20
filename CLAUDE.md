@@ -19,7 +19,7 @@ near-zero cost while games run (Battlefield 6, Cyberpunk 2077).
 pytest                                    # all tests (GPU tests skip if no GL context)
 python -m ginga                           # the app: wallpaper + tray (log: %APPDATA%\ginga\ginga.log)
 python -m ginga.calibrate                 # calibration only
-python scripts/build_exe.py               # dist/ginga/ + release zip (needs pip install -e .[build])
+python scripts/build_exe.py               # dist/ginga/ + release zip + setup.exe (needs pip install -e .[build]; Inno Setup 6 for the setup)
 python scripts/preview.py --out preview   # offline PNG/GIF previews
 ```
 
@@ -56,10 +56,12 @@ v1.0.1 released (one-folder build after a Kaspersky false positive; OpenTIP: cle
 
 v2.0 "modo berimbau" on `feat/v2-audio`: analysis, capture, shader, renderer, Settings section; owner approved it live. Steady-state cost ~2.5% of one core with audio on; zero while paused. Build collects `soundcard` data (its cffi reads `*.py.h` at runtime). Settings "Save" always rewrites the Run key so stale paths from older installs get fixed.
 
-Next: v2.1 installer, then v3 (below).
+v2.1 installer on `feat/v2.1-installer`: `packaging/ginga.iss` (Inno Setup 6, per-user, `PrivilegesRequired=lowest`, fixed AppId for upgrades, `AppMutex=Local\ginga-wallpaper` so setup/uninstall close the running app, wipes `_internal` on upgrade). The "autostart" task writes the same HKCU Run value as `autostart.py`; an unticked task leaves it alone (Settings owns it); uninstall always deletes it and keeps `%APPDATA%\ginga`. `build_exe.py` finds ISCC via `$ISCC`, PATH or default installs (owner has it at `%LOCALAPPDATA%\Programs\Inno Setup 6`). Silent install/uninstall verified.
+
+Next: v3 (below).
 
 ## Roadmap
 
 - v2: audio-reactive mode ("modo berimbau"): done (2.0).
-- v2.1: Inno Setup installer, per-user (`%LOCALAPPDATA%\Programs\ginga`, no admin) so the app appears in Settings > Apps with uninstall; Start Menu shortcut; optional autostart (uninstall removes the Run key); built from `scripts/build_exe.py`; zip stays as the portable option. MSIX needs code signing, so not now.
+- v2.1: done. Inno Setup installer, per-user (`%LOCALAPPDATA%\Programs\ginga`, no admin) so the app appears in Settings > Apps with uninstall; Start Menu shortcut; optional autostart (uninstall removes the Run key); built from `scripts/build_exe.py`; zip stays as the portable option. MSIX needs code signing, so not now.
 - v3: load any wallpaper (static images first, then video/GIF) from Settings, spanning the monitors with the same calibration. This is the owner's original frustration: big wallpapers on physically misaligned monitors.
