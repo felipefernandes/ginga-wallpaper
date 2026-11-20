@@ -16,7 +16,7 @@ MUTEX_NAME = "Local\\ginga-wallpaper"
 ERROR_ALREADY_EXISTS = 183
 
 
-def _single_instance():
+def _single_instance(name: str = MUTEX_NAME):
     """Hold a named mutex for the process lifetime; None if another instance owns it."""
     if sys.platform != "win32":
         return object()
@@ -24,7 +24,7 @@ def _single_instance():
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.CreateMutexW.restype = ctypes.c_void_p
-    handle = kernel32.CreateMutexW(None, False, MUTEX_NAME)
+    handle = kernel32.CreateMutexW(None, False, name)
     if not handle or ctypes.get_last_error() == ERROR_ALREADY_EXISTS:
         return None
     return handle

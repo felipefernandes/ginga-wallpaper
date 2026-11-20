@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-FFT_SIZE = 2048
+FFT_SIZE = 4096  # 11.7 Hz bins at 48 kHz: fine enough to separate bass notes
 N_BINS = 128
 FMIN, FMAX = 40.0, 16000.0
 BASS_MAX_HZ = 150.0
@@ -65,13 +65,15 @@ class SpectrumAnalyzer:
         edges = band_edges(n_bins, fmin, fmax)
         df = sample_rate / FFT_SIZE
         last = FFT_SIZE // 2
-        self._ranges = []
-        for lo, hi in zip(edges[:-1], edges[1:]):
-            a, b = int(np.ceil(lo / df)), int(np.floor(hi / df))
-            if a > b:  # band narrower than an FFT bin: use the nearest bin
-                a = b = int(round(np.sqrt(lo * hi) / df))
-            self._ranges.append((min(a, last), min(b, last) + 1))
         centers = np.sqrt(edges[:-1] * edges[1:])
+        # Wide bands take the max of their FFT bins; bands narrower than one
+        # bin (the bass end) interpolate at their center instead, so neighbours
+        # do not repeat the same value as a staircase.
+        self._ranges = []
+        for lo, hi, fc in zip(edges[:-1], edges[1:], centers):
+            a, b = int(np.ceil(lo / df)), int(np.floor(hi / df))
+            self._ranges.append((min(a, last), min(b, last) + 1) if a <= b else fc / df)
+        self._bin_index = np.arange(last + 1, dtype=np.float64)
         self._tilt = (TILT_DB_PER_OCTAVE * np.log2(centers / 1000.0)).astype(np.float32)
         self._bass_bins = max(1, int(np.searchsorted(centers, BASS_MAX_HZ)))
 
@@ -101,7 +103,11 @@ class SpectrumAnalyzer:
             self._level_peak = max(PEAK_FLOOR_DB, self._level_peak - PEAK_DECAY_DB_PER_S * dt)
         else:
             mags = np.abs(np.fft.rfft(self._buffer * self._window)) * self._norm
-            bands = np.array([mags[a:b].max() for a, b in self._ranges], dtype=np.float32)
+            bands = np.array(
+                [np.interp(r, self._bin_index, mags) if isinstance(r, float) else mags[r[0]:r[1]].max()
+                 for r in self._ranges],
+                dtype=np.float32,
+            )
             db = 20.0 * np.log10(bands + 1e-12) + self._tilt
             self._peak = max(float(db.max()), self._peak - PEAK_DECAY_DB_PER_S * dt, PEAK_FLOOR_DB)
             target = np.clip((db - (self._peak - RANGE_DB)) / RANGE_DB, 0.0, 1.0).astype(np.float32)

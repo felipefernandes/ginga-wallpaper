@@ -14,6 +14,7 @@ dependencies = [
     "numpy>=1.26",
     "tomli-w>=1.0",
     "pystray>=0.19; sys_platform == 'win32'",
+    "soundcard>=0.4.6; sys_platform == 'win32'",
     "pillow>=10",
 ]
 
