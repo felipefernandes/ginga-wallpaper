@@ -36,7 +36,8 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 | `src/ginga/desktop.py` | Attach behind icons after Progman `0x052C`. 24H2+: child of Progman right below `SHELLDLL_DefView`, and it **must be `WS_EX_LAYERED`** (alpha 255) or DWM never shows it. Legacy: child of the `WorkerW` after the icon host. Explorer restart kills the window: `Renderer.desktop_lost` tells the caller to recreate it |
 | `src/ginga/calibrate.py` + `guides.frag.glsl` | `CalibrationRenderer` (topmost, interactive `Renderer` subclass): canvas-space guide lines + Pillow-rendered HUD. Arrows move the *image* (Up = +y, what a physically lower monitor needs), Shift 10px, Tab, Space freezes the wave, Enter saves, Esc cancels |
 | `src/ginga/app.py` | Supervisor on the main thread: one renderer at a time (wallpaper or calibration), retries start (Explorer not ready at logon), recreates on `desktop_lost`; tray-facing methods are thread-safe |
-| `src/ginga/tray.py` + `__main__.py` | pystray menu in a background thread (PT-BR labels; re-adds itself on Explorer restart; actions wrapped in `safe()` because pystray swallows exceptions; `.toml` may lack a file association, so config opens in Notepad as fallback; About box via MessageBoxW); entry point with named-mutex single instance and rotating log file |
+| `src/ginga/tray.py` + `__main__.py` | pystray menu in a background thread (PT-BR labels: Pausar, Configurações…, Alinhar monitores…, Sobre…, Sair; re-adds itself on Explorer restart; actions wrapped in `safe()` because pystray swallows exceptions; About box via MessageBoxW); entry point with named-mutex single instance and rotating log file |
+| `src/ginga/settings.py` + `settings_ui.py` | Settings screen for non-technical users: pure slider model (`Field`, clamp/snap) + tkinter window on its own thread with live preview, Save/Cancel/Restore defaults. Never edits offsets: `App.update_settings` keeps the app's offsets, and calibration saves only offsets |
 
 ## Owner's hardware
 
@@ -45,12 +46,12 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 
 ## Status (v1)
 
-Done: 1 scaffold, 2 config, 3 layout, 4 fullscreen detection logic, 5 shader + previews (visual approved), 6 renderer (`scripts/run_renderer.py [--desktop]` runs it standalone and reports fps/CPU), 7 desktop attach (verified by screenshot on build 26300), 8 calibration (`python -m ginga.calibrate`, owner calibrated monitor 2 at ~y+130), 9 tray + app (smoke-tested: attach, single instance, log).
+Done: 1 scaffold, 2 config, 3 layout, 4 fullscreen detection logic, 5 shader + previews (visual approved), 6 renderer (`scripts/run_renderer.py [--desktop]` runs it standalone and reports fps/CPU), 7 desktop attach (verified by screenshot on build 26300), 8 calibration (`python -m ginga.calibrate`, owner calibrated monitor 2 at ~y+130), 9 tray + app (smoke-tested: attach, single instance, log), settings UI (owner asked: editing TOML is too hard for lay users).
 
 Next (only testable on Windows; run and iterate with the user):
-10. PyInstaller `.exe` + "start with Windows" instructions.
+10. PyInstaller `.exe` + "start with Windows"; then PR to `main` and tag `v1.0`.
 
 ## Roadmap
 
-- v2: audio-reactive mode ("modo berimbau").
-- Later: video/GIF wallpapers with the same alignment.
+- v2: audio-reactive mode ("modo berimbau"): the wave reacts to the PC's audio output.
+- v3: load any wallpaper (static images first, then video/GIF) from Settings, spanning the monitors with the same calibration. This is the owner's original frustration: big wallpapers on physically misaligned monitors.

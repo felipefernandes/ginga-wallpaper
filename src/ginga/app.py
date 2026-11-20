@@ -11,6 +11,7 @@ tested with fakes.
 
 from __future__ import annotations
 
+import copy
 import logging
 import threading
 import time
@@ -91,12 +92,28 @@ class App:
                 self._current.set_paused(self.paused)
 
     def reload(self) -> None:
-        config = self._load()
+        self._apply(self._load())
+        log.info("Config reloaded")
+
+    def update_settings(self, settings: Config, persist: bool) -> None:
+        """Apply render/wave settings from the Settings screen (preview or save).
+
+        Calibration offsets always come from the app, never from `settings`,
+        so a stale settings window cannot undo a calibration.
+        """
+        config = copy.deepcopy(settings)
+        with self._lock:
+            config.offsets = copy.deepcopy(self.config.offsets)
+        self._apply(config)
+        if persist:
+            self._save(config)
+            log.info("Settings saved")
+
+    def _apply(self, config: Config) -> None:
         with self._lock:
             self.config = config
             if self._current_is_wallpaper and self._current is not None:
                 self._current.reload(config)
-        log.info("Config reloaded")
 
     def _post(self, request: str) -> None:
         with self._lock:
@@ -150,8 +167,13 @@ class App:
         finally:
             self._set_current(None)
         if renderer.result == "save" and renderer.calibration is not None:
-            self.config.offsets = dict(renderer.calibration.offsets)
-            self._save(self.config)
+            offsets = dict(renderer.calibration.offsets)
+            with self._lock:
+                self.config.offsets = offsets
+            # Persist only the offsets: unsaved Settings previews stay unsaved.
+            stored = self._load()
+            stored.offsets = copy.deepcopy(offsets)
+            self._save(stored)
             log.info("Calibration saved: %s", self.config.offsets)
         else:
             log.info("Calibration cancelled")

@@ -1,4 +1,4 @@
-"""System tray icon: pause, align monitors, settings, about, quit.
+"""System tray icon: pause, settings, align monitors, about, quit.
 
 pystray runs its own message loop in a background thread; menu actions call
 the thread-safe `App` methods. pystray re-adds the icon by itself when
@@ -11,15 +11,11 @@ from __future__ import annotations
 import functools
 import logging
 import math
-import os
-import subprocess
 import threading
 import webbrowser
 from collections.abc import Callable
-from pathlib import Path
 
 from ginga.app import App
-from ginga.config import default_config_path, save_config
 
 log = logging.getLogger(__name__)
 
@@ -62,22 +58,6 @@ def icon_image():
     return img
 
 
-def open_config(path: Path | None = None) -> None:
-    """Open config.toml for editing, creating it with defaults first.
-
-    .toml often has no file association on Windows; fall back to Notepad.
-    """
-    from ginga.config import load_config
-
-    path = path or default_config_path()
-    if not path.exists():
-        save_config(load_config(path), path)
-    try:
-        os.startfile(path)  # type: ignore[attr-defined]  # Windows only
-    except OSError:
-        subprocess.Popen(["notepad.exe", str(path)])
-
-
 def _version() -> str:
     from importlib.metadata import PackageNotFoundError, version
 
@@ -115,6 +95,8 @@ def start_tray(app: App):
     """Show the tray icon in a background thread; returns the pystray Icon."""
     import pystray
 
+    from ginga.settings_ui import open_settings
+
     def quit_(icon, _item):
         app.request_quit()
         icon.stop()
@@ -123,9 +105,8 @@ def start_tray(app: App):
     menu = pystray.Menu(
         item("Pausar", safe(app.toggle_pause), checked=lambda _item: app.paused),
         pystray.Menu.SEPARATOR,
+        item("Configurações…", safe(lambda: open_settings(app)), default=True),
         item("Alinhar monitores…", safe(app.request_calibrate)),
-        item("Abrir configurações", safe(open_config)),
-        item("Recarregar configurações", safe(app.reload)),
         pystray.Menu.SEPARATOR,
         item("Sobre…", safe(show_about)),
         item("Sair", quit_),
