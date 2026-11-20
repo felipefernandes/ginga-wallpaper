@@ -17,6 +17,8 @@ near-zero cost while games run (Battlefield 6, Cyberpunk 2077).
 ```bash
 .venv\Scripts\activate
 pytest                                    # all tests (GPU tests skip if no GL context)
+python -m ginga                           # the app: wallpaper + tray (log: %APPDATA%\ginga\ginga.log)
+python -m ginga.calibrate                 # calibration only
 python scripts/preview.py --out preview   # offline PNG/GIF previews
 ```
 
@@ -33,6 +35,8 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 | `src/ginga/renderer.py` | Frame loop: borderless GLFW window over the desktop, viewport per monitor, own FPS pacing (no vsync), auto/manual pause; `stop`/`set_paused`/`reload` are thread-safe |
 | `src/ginga/desktop.py` | Attach behind icons after Progman `0x052C`. 24H2+: child of Progman right below `SHELLDLL_DefView`, and it **must be `WS_EX_LAYERED`** (alpha 255) or DWM never shows it. Legacy: child of the `WorkerW` after the icon host. Explorer restart kills the window: `Renderer.desktop_lost` tells the caller to recreate it |
 | `src/ginga/calibrate.py` + `guides.frag.glsl` | `CalibrationRenderer` (topmost, interactive `Renderer` subclass): canvas-space guide lines + Pillow-rendered HUD. Arrows move the *image* (Up = +y, what a physically lower monitor needs), Shift 10px, Tab, Space freezes the wave, Enter saves, Esc cancels |
+| `src/ginga/app.py` | Supervisor on the main thread: one renderer at a time (wallpaper or calibration), retries start (Explorer not ready at logon), recreates on `desktop_lost`; tray-facing methods are thread-safe |
+| `src/ginga/tray.py` + `__main__.py` | pystray menu in a background thread (re-adds itself on Explorer restart); entry point with named-mutex single instance and rotating log file |
 
 ## Owner's hardware
 
@@ -41,10 +45,9 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 
 ## Status (v1)
 
-Done: 1 scaffold, 2 config, 3 layout, 4 fullscreen detection logic, 5 shader + previews (visual approved), 6 renderer (`scripts/run_renderer.py [--desktop]` runs it standalone and reports fps/CPU), 7 desktop attach (verified by screenshot on build 26300), 8 calibration (`python -m ginga.calibrate`).
+Done: 1 scaffold, 2 config, 3 layout, 4 fullscreen detection logic, 5 shader + previews (visual approved), 6 renderer (`scripts/run_renderer.py [--desktop]` runs it standalone and reports fps/CPU), 7 desktop attach (verified by screenshot on build 26300), 8 calibration (`python -m ginga.calibrate`, owner calibrated monitor 2 at ~y+130), 9 tray + app (smoke-tested: attach, single instance, log).
 
 Next (only testable on Windows; run and iterate with the user):
-9. `tray.py` + `__main__.py`: tray menu (pause, calibrate, reload, quit), wire everything.
 10. PyInstaller `.exe` + "start with Windows" instructions.
 
 ## Roadmap
