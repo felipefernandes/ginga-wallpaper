@@ -32,3 +32,32 @@ def test_second_instance_is_refused():
     first = _single_instance()
     assert first is not None
     assert _single_instance() is None
+
+
+def test_open_config_falls_back_to_notepad_without_toml_association(tmp_path, monkeypatch):
+    def no_association(_path):
+        raise OSError("No application is associated with the specified file")
+
+    launched = []
+    monkeypatch.setattr(tray.os, "startfile", no_association, raising=False)
+    monkeypatch.setattr(tray.subprocess, "Popen", launched.append)
+    path = tmp_path / "config.toml"
+
+    tray.open_config(path)
+
+    assert launched == [["notepad.exe", str(path)]]
+
+
+def test_about_text_credits_author_repo_and_version():
+    text = tray.about_text()
+    assert "Felipe Fernandes" in text
+    assert "github.com/felipefernandes/ginga-wallpaper" in text
+    assert "versão" in text
+
+
+def test_menu_actions_log_errors_instead_of_failing_silently(caplog):
+    def boom():
+        raise RuntimeError("kaboom")
+
+    tray.safe(boom)()  # must not raise
+    assert "kaboom" in caplog.text
