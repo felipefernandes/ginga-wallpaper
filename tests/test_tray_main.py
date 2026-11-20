@@ -22,7 +22,7 @@ def test_second_instance_is_refused():
     from ginga.__main__ import _single_instance
 
     # Own mutex name: the real app may be running on the dev machine.
-    name = "Local\ginga-wallpaper-test"
+    name = r"Local\ginga-wallpaper-test"
     first = _single_instance(name)
     assert first is not None
     assert _single_instance(name) is None
