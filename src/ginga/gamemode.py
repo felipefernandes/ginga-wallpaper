@@ -18,6 +18,7 @@ SHELL_CLASSES = frozenset({"Progman", "WorkerW", "Shell_TrayWnd", "Shell_Seconda
 class WindowInfo:
     class_name: str
     rect: Rect
+    hwnd: int = 0
 
 
 def _covers(window: Rect, monitor: Rect) -> bool:
@@ -58,4 +59,5 @@ def foreground_window() -> WindowInfo | None:
     return WindowInfo(
         class_name=buf.value,
         rect=Rect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top),
+        hwnd=hwnd,
     )
