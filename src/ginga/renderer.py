@@ -123,11 +123,24 @@ def glfw_monitors() -> list[Monitor]:
 
 
 class Renderer:
-    def __init__(self, config: Config, pause_check: Callable[[], bool] | None = None):
-        """`pause_check` overrides the default fullscreen detection (for tests/tools)."""
+    def __init__(
+        self,
+        config: Config,
+        pause_check: Callable[[], bool] | None = None,
+        attach_to_desktop: bool = False,
+    ):
+        """`pause_check` overrides the default fullscreen detection (for tests/tools).
+
+        With `attach_to_desktop` the window lives behind the desktop icons. If
+        Explorer restarts, the window dies with it: `run()` returns with
+        `desktop_lost` set so the caller can start a new Renderer.
+        """
         self.config = config
         self.frames = 0  # frames drawn since start (diagnostics)
         self.hwnd = 0
+        self.desktop_lost = False
+        self._attach_to_desktop = attach_to_desktop
+        self._attachment = None
         self._pause_check = pause_check or self._fullscreen_active
         self._limiter = FrameLimiter(config.render.fps)
         self._clock = AnimationClock()
@@ -240,6 +253,10 @@ class Renderer:
 
         self._ctx = moderngl.create_context()
         self._program = WaveProgram(self._ctx)
+        if self._attach_to_desktop:
+            from ginga.desktop import attach
+
+            self._attachment = attach(self.hwnd)
         self._apply_layout()
         glfw.show_window(self._window)
         log.info("Renderer started (OpenGL %s)", self._ctx.info.get("GL_VERSION"))
@@ -267,6 +284,11 @@ class Renderer:
         self._layout_dirty = True
 
     def _periodic_checks(self) -> None:
+        if self._attachment is not None and not self._attachment.alive():
+            log.warning("Desktop window was destroyed (Explorer restarted?)")
+            self.desktop_lost = True
+            self._stop = True
+            return
         try:
             self._auto_pause = self._pause_check()
         except Exception:  # never let detection crash the wallpaper
@@ -294,9 +316,12 @@ class Renderer:
         )
 
     def place_window(self, desktop: Rect) -> None:
-        """Move/resize the window over `desktop` (overridden once attached to the desktop)."""
+        """Move/resize the window over `desktop` (screen coordinates)."""
         import glfw
 
+        if self._attachment is not None:
+            self._attachment.place(desktop)
+            return
         glfw.set_window_pos(self._window, desktop.x, desktop.y)
         glfw.set_window_size(self._window, desktop.width, desktop.height)
 
