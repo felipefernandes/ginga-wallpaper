@@ -14,14 +14,25 @@ import threading
 
 from ginga.app import App
 from ginga.config import Config
-from ginga.settings import FIELDS, Field, format_value, get_value, offsets_summary, with_value
+from ginga.settings import (
+    FIELDS,
+    TOGGLES,
+    Field,
+    Toggle,
+    format_value,
+    get_toggle,
+    get_value,
+    offsets_summary,
+    with_toggle,
+    with_value,
+)
 
 log = logging.getLogger(__name__)
 
 PREVIEW_DELAY_MS = 80    # debounce slider drags before touching the renderer
 POLL_MS = 250            # bring-to-front requests and offsets label refresh
 
-SECTIONS = (("Animação", "wave"), ("Desempenho", "render"))
+SECTIONS = (("Animação", "wave"), ("Modo berimbau", "audio"), ("Desempenho", "render"))
 
 _lock = threading.Lock()
 _thread: threading.Thread | None = None
@@ -66,6 +77,7 @@ class SettingsWindow:
         self._preview_job = None
         self._values: dict[str, tk.DoubleVar] = {}
         self._labels: dict[str, ttk.Label] = {}
+        self._toggles: dict[str, tk.BooleanVar] = {}
 
         root = self.root = tk.Tk()
         root.title("ginga wallpaper — Configurações")
@@ -86,16 +98,13 @@ class SettingsWindow:
                 row=row, column=0, columnspan=3, sticky="w", pady=(8 if row else 0, 4)
             )
             row += 1
+            toggles = [t for t in TOGGLES if t.section == section]
+            for t in (t for t in toggles if t.before_sliders):
+                row = self._toggle(body, t, row, pady=(0, 6))
             for f in (f for f in FIELDS if f.section == section):
                 row = self._slider(body, f, row)
-        self._pause_var = tk.BooleanVar(value=self.working.render.pause_when_fullscreen)
-        ttk.Checkbutton(
-            body,
-            text="Pausar quando um jogo ou vídeo estiver em tela cheia",
-            variable=self._pause_var,
-            command=self._on_pause_toggle,
-        ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(4, 0))
-        row += 1
+            for t in (t for t in toggles if not t.before_sliders):
+                row = self._toggle(body, t, row)
         self._autostart_var = tk.BooleanVar(value=_autostart_enabled())
         ttk.Checkbutton(body, text="Iniciar com o Windows", variable=self._autostart_var).grid(
             row=row, column=0, columnspan=3, sticky="w", pady=(4, 0)
@@ -157,6 +166,17 @@ class SettingsWindow:
         )
         return row + 2
 
+    def _toggle(self, parent, t: Toggle, row: int, pady=(4, 0)) -> int:
+        import tkinter as tk
+        from tkinter import ttk
+
+        var = tk.BooleanVar(value=get_toggle(self.working, t))
+        self._toggles[t.key] = var
+        ttk.Checkbutton(
+            parent, text=t.label, variable=var, command=lambda t=t: self._on_toggle(t),
+        ).grid(row=row, column=0, columnspan=3, sticky="w", pady=pady)
+        return row + 1
+
     def _set_icon(self) -> None:
         try:
             from PIL import ImageTk
@@ -173,7 +193,8 @@ class SettingsWindow:
             value = get_value(self.working, f)
             self._values[f.key].set(value)
             self._labels[f.key].configure(text=format_value(f, value))
-        self._pause_var.set(self.working.render.pause_when_fullscreen)
+        for t in TOGGLES:
+            self._toggles[t.key].set(get_toggle(self.working, t))
 
     # -- events -------------------------------------------------------------------------
 
@@ -182,8 +203,8 @@ class SettingsWindow:
         self._labels[f.key].configure(text=format_value(f, get_value(self.working, f)))
         self._schedule_preview()
 
-    def _on_pause_toggle(self) -> None:
-        self.working.render.pause_when_fullscreen = bool(self._pause_var.get())
+    def _on_toggle(self, t: Toggle) -> None:
+        self.working = with_toggle(self.working, t, self._toggles[t.key].get())
         self._schedule_preview()
 
     def _schedule_preview(self) -> None:

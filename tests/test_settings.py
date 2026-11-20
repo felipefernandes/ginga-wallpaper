@@ -93,3 +93,14 @@ def test_saving_calibration_does_not_persist_unsaved_previews():
     assert h.saved[0].wave.speed == 1.0
     assert h.saved[0].offsets["2"] == Offset(0, 1)
     assert h.app.config.wave.speed == 2.5  # preview still live
+
+
+def test_audio_section_has_a_toggle_and_a_sensitivity_slider():
+    from ginga.settings import TOGGLES, get_toggle, with_toggle
+
+    assert field("audio.sensitivity").minimum < 1.0 < field("audio.sensitivity").maximum
+    toggle = next(t for t in TOGGLES if t.key == "audio.enabled")
+    cfg = Config()
+    assert get_toggle(cfg, toggle) is False
+    on = with_toggle(cfg, toggle, True)
+    assert on.audio.enabled is True and cfg.audio.enabled is False  # copy, not mutation

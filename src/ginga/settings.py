@@ -15,7 +15,7 @@ from ginga.config import Config, Offset
 
 @dataclass(frozen=True)
 class Field:
-    section: str   # "wave" or "render"
+    section: str   # "wave", "audio" or "render"
     name: str      # attribute inside the section
     label: str
     minimum: float
@@ -37,8 +37,37 @@ FIELDS: tuple[Field, ...] = (
     Field("wave", "amplitude", "Altura da onda", 0.2, 2.0, 0.05, "Quanto a onda sobe e desce"),
     Field("wave", "glow", "Brilho", 0.0, 3.0, 0.05, "Intensidade do brilho em volta da linha"),
     Field("wave", "spikes", "Textura de som", 0.0, 2.0, 0.05, "Os picos finos em volta da onda"),
+    Field("audio", "sensitivity", "Sensibilidade", 0.3, 3.0, 0.05, "Quanto a onda reage ao som"),
     Field("render", "fps", "Quadros por segundo", 5, 144, 1, "Mais FPS = mais suave, mais uso de GPU"),
 )
+
+
+@dataclass(frozen=True)
+class Toggle:
+    section: str
+    name: str
+    label: str
+    before_sliders: bool = False  # e.g. the switch that enables its section
+
+    @property
+    def key(self) -> str:
+        return f"{self.section}.{self.name}"
+
+
+TOGGLES: tuple[Toggle, ...] = (
+    Toggle("audio", "enabled", "Reagir ao som do PC (música, vídeos, jogos)", before_sliders=True),
+    Toggle("render", "pause_when_fullscreen", "Pausar quando um jogo ou vídeo estiver em tela cheia"),
+)
+
+
+def get_toggle(config: Config, t: Toggle) -> bool:
+    return bool(getattr(getattr(config, t.section), t.name))
+
+
+def with_toggle(config: Config, t: Toggle, value: bool) -> Config:
+    new = copy.deepcopy(config)
+    setattr(getattr(new, t.section), t.name, bool(value))
+    return new
 
 
 def field(key: str) -> Field:

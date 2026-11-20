@@ -39,6 +39,7 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 | `src/ginga/app.py` | Supervisor on the main thread: one renderer at a time (wallpaper or calibration), retries start (Explorer not ready at logon), recreates on `desktop_lost`; tray-facing methods are thread-safe |
 | `src/ginga/tray.py` + `__main__.py` | pystray menu in a background thread (PT-BR labels: Pausar, Configurações…, Alinhar monitores…, Sobre…, Sair; re-adds itself on Explorer restart; actions wrapped in `safe()` because pystray swallows exceptions; About box via MessageBoxW); entry point with named-mutex single instance and rotating log file |
 | `src/ginga/settings.py` + `settings_ui.py` | Settings screen for non-technical users: pure slider model (`Field`, clamp/snap) + tkinter window on its own thread with live preview, Save/Cancel/Restore defaults. Never edits offsets: `App.update_settings` keeps the app's offsets, and calibration saves only offsets |
+| `src/ginga/audio.py` + `audio_capture.py` | "Modo berimbau": pure numpy `SpectrumAnalyzer` (FFT 4096, 128 log bands 40 Hz-16 kHz, tilt + auto-gain + silence gate, fast attack/slow release) and a WASAPI-loopback thread (`soundcard`) that drains the buffer ~30x/s (blocking reads busy-poll: 6% vs 1% CPU), follows default-device changes and stops whenever the wallpaper pauses. Shader effects are gated by `u_audio`; at 0 the output is pixel-identical to v1 |
 
 ## Owner's hardware
 
@@ -51,7 +52,9 @@ v1.0 released (tag `v1.0`, GitHub release with `ginga.exe`): renderer, desktop a
 
 Packaging notes: pyGLFW loads `glfw3.dll` via ctypes, so `scripts/build_exe.py` ships it into `<bundle>/glfw/` explicitly (the PyInstaller "glfw3.dll not found" warning is expected). A one-file exe runs as bootloader + child process: killing the bootloader leaves the app running. Bump `version` in `pyproject.toml` before a release (shown in "Sobre…").
 
-Next: v2 (below). Work on a new branch off `main`.
+v1.0.1 (one-folder build after a Kaspersky false positive) is on branch `fix/av-false-positive`, not yet pushed: the owner must explicitly approve push/PR/tag/release.
+
+In progress: v2 audio mode on `feat/v2-audio` (analysis, capture, shader, renderer, Settings section done; needs a live listen with the owner). Steady-state cost ~2.5% of one core with audio on; zero while paused.
 
 ## Roadmap
 
