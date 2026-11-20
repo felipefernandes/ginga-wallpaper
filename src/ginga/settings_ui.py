@@ -39,6 +39,15 @@ def open_settings(app: App) -> None:
         _thread.start()
 
 
+def _autostart_enabled() -> bool:
+    try:
+        from ginga import autostart
+
+        return autostart.is_enabled()
+    except (ImportError, OSError):  # winreg missing off Windows
+        return False
+
+
 def _run(app: App) -> None:
     try:
         SettingsWindow(app).mainloop()
@@ -86,6 +95,11 @@ class SettingsWindow:
             variable=self._pause_var,
             command=self._on_pause_toggle,
         ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(4, 0))
+        row += 1
+        self._autostart_var = tk.BooleanVar(value=_autostart_enabled())
+        ttk.Checkbutton(body, text="Iniciar com o Windows", variable=self._autostart_var).grid(
+            row=row, column=0, columnspan=3, sticky="w", pady=(4, 0)
+        )
         row += 1
 
         ttk.Label(body, text="Monitores", style="Section.TLabel").grid(
@@ -188,6 +202,14 @@ class SettingsWindow:
 
     def save(self) -> None:
         self.app.update_settings(self.working, persist=True)
+        wanted = bool(self._autostart_var.get())
+        if wanted != _autostart_enabled():
+            try:
+                from ginga import autostart
+
+                autostart.set_enabled(wanted)
+            except OSError:
+                log.exception("Could not change start-with-Windows")
         self._close()
 
     def cancel(self) -> None:

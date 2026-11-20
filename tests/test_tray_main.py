@@ -13,6 +13,10 @@ def test_icon_image_is_a_square_rgba_with_content():
     assert img.getbbox() is not None  # something was drawn
 
 
+def test_icon_image_scales_for_the_exe_icon():
+    assert tray.icon_image(256).size == (256, 256)
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="named mutex is Windows-only")
 def test_second_instance_is_refused():
     from ginga.__main__ import _single_instance

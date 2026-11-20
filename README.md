@@ -7,16 +7,32 @@ where the screens are **not physically aligned**.
 
 ![Calibration preview](docs/calibration.png)
 
-## Features (v1, in progress)
+## Features (v1.0)
 
-- [x] Procedural light-wave shader (GPU, no video decoding)
-- [x] One continuous canvas across all monitors
-- [x] Per-monitor calibration offsets (`config.toml`)
-- [x] Fullscreen detection logic (pauses rendering while gaming)
-- [ ] Desktop attach (behind icons, via `WorkerW`)
-- [ ] Visual calibration mode (arrow keys)
-- [ ] System tray menu
-- [ ] Standalone `.exe`
+- Procedural light-wave shader (GPU, no video decoding)
+- One continuous canvas across all monitors
+- **Monitor alignment**: a visual mode with guide lines lines up monitors that
+  sit at different heights on the desk, so the image flows across the bezel
+- Lives behind the desktop icons (Windows 11 24H2+ and older layouts)
+- Pauses itself while a game or video runs fullscreen
+- Tray menu: pause, settings, align monitors, about, quit
+- Settings window with live preview (speed, wave height, glow, texture, FPS)
+  and "start with Windows"
+- Single standalone `ginga.exe`, no install needed
+
+## Install
+
+1. Download `ginga.exe` from the [latest release](https://github.com/felipefernandes/ginga-wallpaper/releases/latest).
+2. Put it in a permanent folder (e.g. `%LOCALAPPDATA%\Programs\ginga`) and run it.
+   Windows SmartScreen may warn because the exe is not signed: *More info → Run anyway*.
+3. Right-click the wave icon in the tray:
+   - **Alinhar monitores…** (align monitors): arrows move the image on the
+     selected monitor until the guide lines are continuous (Shift = 10 px,
+     Tab = next monitor, Space = freeze the wave, Enter = save, Esc = cancel).
+   - **Configurações…** (settings): tweak the look and tick
+     *Iniciar com o Windows* to start with Windows.
+
+Logs: `%APPDATA%\ginga\ginga.log`.
 
 ## Development
 
@@ -27,6 +43,14 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows
 pip install -e ".[dev]"
 pytest
+python -m ginga                 # run the app from source
+```
+
+Build `dist/ginga.exe`:
+
+```bash
+pip install -e ".[build]"
+python scripts/build_exe.py
 ```
 
 Render previews offline (simulates a monitor that sits lower than the other):
@@ -37,7 +61,7 @@ python scripts/preview.py --out preview
 
 ## Configuration
 
-Stored at `%APPDATA%\ginga\config.toml`:
+Edited through the Settings window; stored at `%APPDATA%\ginga\config.toml`:
 
 ```toml
 [render]
@@ -54,3 +78,11 @@ spikes = 1.0
 x = 0
 y = 120
 ```
+
+## Roadmap
+
+- **v2**: audio-reactive mode ("modo berimbau"): the wave dances to the PC's audio.
+- **v3**: use any wallpaper (images first, then video/GIF) spanning the
+  monitors with the same alignment.
+
+Made by Felipe Fernandes.

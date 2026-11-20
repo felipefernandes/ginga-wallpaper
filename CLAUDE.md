@@ -19,6 +19,7 @@ near-zero cost while games run (Battlefield 6, Cyberpunk 2077).
 pytest                                    # all tests (GPU tests skip if no GL context)
 python -m ginga                           # the app: wallpaper + tray (log: %APPDATA%\ginga\ginga.log)
 python -m ginga.calibrate                 # calibration only
+python scripts/build_exe.py               # dist/ginga.exe (needs pip install -e .[build])
 python scripts/preview.py --out preview   # offline PNG/GIF previews
 ```
 
@@ -44,12 +45,13 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 - 2x 1920x1080 at 100% scale: monitor 1 at (0,0) 180Hz, monitor 2 at (1920,0) 144Hz. Windows reports them top-aligned; the physical drop is handled by calibration.
 - NVIDIA RTX 2060, OpenGL 3.3.
 
-## Status (v1)
+## Status
 
-Done: 1 scaffold, 2 config, 3 layout, 4 fullscreen detection logic, 5 shader + previews (visual approved), 6 renderer (`scripts/run_renderer.py [--desktop]` runs it standalone and reports fps/CPU), 7 desktop attach (verified by screenshot on build 26300), 8 calibration (`python -m ginga.calibrate`, owner calibrated monitor 2 at ~y+130), 9 tray + app (smoke-tested: attach, single instance, log), settings UI (owner asked: editing TOML is too hard for lay users).
+v1.0 released (tag `v1.0`, GitHub release with `ginga.exe`): renderer, desktop attach (verified on build 26300), calibration ("Alinhar monitores"; owner's monitor 2 sits ~y+130..170 lower), tray, Settings window with live preview and "start with Windows" (HKCU Run key, `autostart.py`), PyInstaller one-file exe.
 
-Next (only testable on Windows; run and iterate with the user):
-10. PyInstaller `.exe` + "start with Windows"; then PR to `main` and tag `v1.0`.
+Packaging notes: pyGLFW loads `glfw3.dll` via ctypes, so `scripts/build_exe.py` ships it into `<bundle>/glfw/` explicitly (the PyInstaller "glfw3.dll not found" warning is expected). A one-file exe runs as bootloader + child process: killing the bootloader leaves the app running. Bump `version` in `pyproject.toml` before a release (shown in "Sobre…").
+
+Next: v2 (below). Work on a new branch off `main`.
 
 ## Roadmap
 

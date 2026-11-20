@@ -38,22 +38,25 @@ def safe(action: Callable[[], object]) -> Callable[[], None]:
     return wrapper
 
 
-def icon_image():
+def icon_image(size: int = ICON_SIZE):
     """A small light wave in the wallpaper's colors (red -> violet -> cyan)."""
     from PIL import Image, ImageDraw
 
-    img = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (0, 0, 0, 0))
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     stops = [(255, 60, 90), (190, 60, 255), (40, 220, 255)]
+    margin, width = size / 16, max(2, round(size * 7 / 64))
+    steps = size * 2
     prev = None
-    for x in range(4, ICON_SIZE - 4):
-        t = (x - 4) / (ICON_SIZE - 9)
+    for i in range(steps + 1):
+        t = i / steps
         seg = min(int(t * 2), 1)
         f = t * 2 - seg
         color = tuple(int(a + (b - a) * f) for a, b in zip(stops[seg], stops[seg + 1]))
-        y = ICON_SIZE / 2 + math.sin(t * math.tau * 1.25) * ICON_SIZE * 0.28
+        x = margin + t * (size - 2 * margin)
+        y = size / 2 + math.sin(t * math.tau * 1.25) * size * 0.28
         if prev is not None:
-            draw.line([prev, (x, y)], fill=color + (255,), width=7)
+            draw.line([prev, (x, y)], fill=color + (255,), width=width)
         prev = (x, y)
     return img
 
