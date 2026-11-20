@@ -56,9 +56,10 @@ v1.0.1 released (one-folder build after a Kaspersky false positive; OpenTIP: cle
 
 v2.0 "modo berimbau" on `feat/v2-audio`: analysis, capture, shader, renderer, Settings section; owner approved it live. Steady-state cost ~2.5% of one core with audio on; zero while paused. Build collects `soundcard` data (its cffi reads `*.py.h` at runtime). Settings "Save" always rewrites the Run key so stale paths from older installs get fixed.
 
-Next: v3 (below).
+Next: v2.1 installer, then v3 (below).
 
 ## Roadmap
 
 - v2: audio-reactive mode ("modo berimbau"): done (2.0).
+- v2.1: Inno Setup installer, per-user (`%LOCALAPPDATA%\Programs\ginga`, no admin) so the app appears in Settings > Apps with uninstall; Start Menu shortcut; optional autostart (uninstall removes the Run key); built from `scripts/build_exe.py`; zip stays as the portable option. MSIX needs code signing, so not now.
 - v3: load any wallpaper (static images first, then video/GIF) from Settings, spanning the monitors with the same calibration. This is the owner's original frustration: big wallpapers on physically misaligned monitors.

@@ -89,6 +89,9 @@ y = 120
 ## Roadmap
 
 - ~~**v2**: audio-reactive mode ("modo berimbau")~~ done in 2.0.
+- **v2.1**: proper installer (Inno Setup, per-user, no admin): shows up in
+  Windows *Settings > Apps* with uninstall, Start Menu shortcut, optional
+  start with Windows. The portable zip stays available.
 - **v3**: use any wallpaper (images first, then video/GIF) spanning the
   monitors with the same alignment.
 
