@@ -5,7 +5,7 @@ Without --desktop the window covers the whole desktop on top of other windows
 Ctrl+C or --seconds stops either.
 
 Usage:
-    python scripts/run_renderer.py --seconds 10 [--desktop] [--fps 30] [--pause-after 5]
+    python scripts/run_renderer.py --seconds 10 [--desktop] [--audio] [--fps 30] [--pause-after 5]
 """
 
 from __future__ import annotations
@@ -25,12 +25,15 @@ def main() -> None:
     parser.add_argument("--fps", type=int, help="override config fps")
     parser.add_argument("--pause-after", type=float, help="manually pause after N seconds")
     parser.add_argument("--desktop", action="store_true", help="attach behind the desktop icons")
+    parser.add_argument("--audio", action="store_true", help="enable the audio-reactive mode")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     config = load_config()
     if args.fps:
         config.render.fps = args.fps
+    if args.audio:
+        config.audio.enabled = True
     renderer = Renderer(config, attach_to_desktop=args.desktop)
 
     timers = [threading.Timer(args.seconds, renderer.stop)]

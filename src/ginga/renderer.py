@@ -12,6 +12,7 @@ tray icon); they only set flags and wake the loop.
 from __future__ import annotations
 
 import logging
+import math
 import time
 from collections.abc import Callable
 
@@ -100,6 +101,21 @@ class Throttle:
         return True
 
 
+AUDIO_FADE = 0.4      # seconds (time constant) to blend idle <-> audio-driven
+AUDIBLE = 0.02        # features below this count as silence
+
+
+def ease(current: float, target: float, dt: float, tau: float) -> float:
+    """Frame-rate independent exponential approach of `target`."""
+    return current + (target - current) * (1.0 - math.exp(-dt / tau))
+
+
+def audio_target(enabled: bool, features) -> float:
+    """1.0 when the wave should follow the audio, 0.0 for the idle animation."""
+    audible = features.level > AUDIBLE or float(features.spectrum.max(initial=0.0)) > AUDIBLE
+    return 1.0 if enabled and audible else 0.0
+
+
 def plan_viewports(layout: Layout, desktop: Rect) -> list[tuple[Viewport, MonitorView]]:
     """GL viewport of each monitor inside a window covering `desktop`."""
     return [(gl_viewport(view.monitor, desktop), view) for view in layout.views]
@@ -126,6 +142,7 @@ def glfw_monitors() -> list[Monitor]:
 class Renderer:
     # Subclass hooks: an interactive renderer floats on top with keyboard focus.
     interactive = False
+    audio_supported = True  # calibration turns this off
 
     @property
     def animating(self) -> bool:
@@ -175,6 +192,10 @@ class Renderer:
         self._plan: list[tuple[Viewport, MonitorView]] = []
         self._size = (0, 0)
 
+        self._audio = None        # AudioCapture, created on first use
+        self._audio_mix = 0.0
+        self._last_draw: float | None = None
+
     # -- thread-safe controls -------------------------------------------------
 
     @property
@@ -215,6 +236,7 @@ class Renderer:
                     self._periodic_checks()
                 if self._layout_dirty:
                     self._apply_layout()
+                self._sync_audio()
 
                 if self.paused:
                     glfw.wait_events_timeout(PAUSED_WAIT)
@@ -284,6 +306,9 @@ class Renderer:
     def _teardown(self) -> None:
         import glfw
 
+        if self._audio is not None:
+            self._audio.stop()
+
         if self._ctx is not None:
             self._ctx.release()
             self._ctx = None
@@ -345,6 +370,34 @@ class Renderer:
         glfw.set_window_pos(self._window, desktop.x, desktop.y)
         glfw.set_window_size(self._window, desktop.width, desktop.height)
 
+    def _sync_audio(self) -> None:
+        """Capture audio only while it is wanted: enabled and actually drawing."""
+        want = self.audio_supported and self.config.audio.enabled and not self.paused
+        if want and (self._audio is None or not self._audio.running):
+            if self._audio is None:
+                from ginga.audio_capture import AudioCapture
+
+                self._audio = AudioCapture()
+            self._audio.start()
+        elif not want and self._audio is not None and self._audio.running:
+            self._audio.stop()
+            self._audio_mix = 0.0
+
+    def _audio_frame(self, now: float):
+        """Audio uniforms for this frame, or None when the idle wave is shown."""
+        from ginga.audio import AudioFeatures
+        from ginga.wave import AudioUniforms
+
+        dt = 0.0 if self._last_draw is None else min(now - self._last_draw, 0.25)
+        self._last_draw = now
+        features = self._audio.latest() if self._audio is not None else AudioFeatures.silent()
+        features = features.scaled(self.config.audio.sensitivity)
+        target = audio_target(self.config.audio.enabled, features)
+        self._audio_mix = ease(self._audio_mix, target, dt, AUDIO_FADE)
+        if self._audio_mix < 1e-3:
+            return None
+        return AudioUniforms(self._audio_mix, features.bass, features.level, features.spectrum)
+
     def _fullscreen_active(self) -> bool:
         from ginga.gamemode import foreground_window, should_pause
 
@@ -370,12 +423,13 @@ class Renderer:
         import glfw
 
         t = self._clock.tick(now, running=self.animating)
+        audio = self._audio_frame(now)
         ctx = self._ctx
         ctx.viewport = (0, 0, *self._size)
         ctx.clear(0.0, 0.0, 0.0)  # areas no monitor covers (mixed heights)
         for viewport, view in self._plan:
             ctx.viewport = viewport
-            self._program.draw(self._layout, view, t, self.config.wave)
+            self._program.draw(self._layout, view, t, self.config.wave, audio=audio)
             self._draw_overlay(viewport, view)
         glfw.swap_buffers(self._window)
         self.frames += 1

@@ -39,8 +39,8 @@ class FakeDevice:
         self.opened.append(device)
         yield self
 
-    def record(self, numframes):
-        time.sleep(0.002)  # real recording blocks for the block's duration
+    def record(self, numframes=None):
+        numframes = numframes or 1600  # None: "what arrived since last call"
         t = (self._phase + np.arange(numframes)) / RATE
         self._phase += numframes
         return (0.5 * np.sin(2 * np.pi * 60 * t)).astype(np.float32)
@@ -49,7 +49,7 @@ class FakeDevice:
 def make(device, **kw):
     return AudioCapture(
         open_stream=device.open, default_device=device.default_device,
-        rate=RATE, block=BLOCK, retry_delay=0.01, device_check=0.05, **kw,
+        rate=RATE, block=BLOCK, retry_delay=0.01, device_check=0.05, poll=0.002, **kw,
     )
 
 

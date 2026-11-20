@@ -1,6 +1,8 @@
 """Capture what the PC is playing (WASAPI loopback) on a background thread.
 
-The thread records small blocks from the default output device, runs them
+The thread wakes ~30 times a second, drains whatever audio arrived from the
+default output device (blocking reads made soundcard busy-poll: ~6% of a
+core versus ~1% this way), runs it
 through `SpectrumAnalyzer` and keeps only the latest `AudioFeatures`, which
 the renderer reads once per frame. It follows changes of the default device
 (headset <-> speakers) and retries after errors. `stop()` ends it so a paused
@@ -25,7 +27,8 @@ from ginga.audio import AudioFeatures, SpectrumAnalyzer
 log = logging.getLogger(__name__)
 
 RATE = 48000
-BLOCK = 1024           # ~21 ms per block at 48 kHz
+BLOCK = 1024           # WASAPI buffer size hint (~21 ms at 48 kHz)
+POLL = 1 / 30          # seconds between drains of the capture buffer
 RETRY_DELAY = 2.0      # seconds after a device error
 DEVICE_CHECK = 2.0     # seconds between default-device checks
 
@@ -38,6 +41,10 @@ def _soundcard_default_device() -> str:
 
 def _soundcard_open(device: str, rate: int, block: int) -> AbstractContextManager[Any]:
     import soundcard
+
+    # soundcard re-installs an "always" filter on import; silence its
+    # "data discontinuity" warnings (raised whenever nothing is playing).
+    warnings.filterwarnings("ignore", category=soundcard.SoundcardRuntimeWarning)
 
     mic = soundcard.get_microphone(id=device, include_loopback=True)
     return mic.recorder(samplerate=rate, channels=2, blocksize=block)
@@ -52,12 +59,14 @@ class AudioCapture:
         block: int = BLOCK,
         retry_delay: float = RETRY_DELAY,
         device_check: float = DEVICE_CHECK,
+        poll: float = POLL,
     ):
         self._open = open_stream
         self._default_device = default_device
         self.rate, self.block = rate, block
         self._retry_delay = retry_delay
         self._device_check = device_check
+        self._poll = poll
         self._lock = threading.Lock()
         self._latest = AudioFeatures.silent()
         self._stop = threading.Event()
@@ -90,8 +99,6 @@ class AudioCapture:
             self._latest = features
 
     def _run(self) -> None:
-        # soundcard warns about "data discontinuity" whenever a block is late.
-        warnings.filterwarnings("ignore", message=".*discontinuity.*")
         analyzer = SpectrumAnalyzer(self.rate)  # fresh auto-gain per session
         while not self._stop.is_set():
             try:
@@ -106,8 +113,10 @@ class AudioCapture:
 
     def _capture(self, stream, device: str, analyzer: SpectrumAnalyzer) -> None:
         last_check = time.monotonic()
-        while not self._stop.is_set():
-            self._publish(analyzer.process(stream.record(numframes=self.block)))
+        while not self._stop.wait(self._poll):
+            # numframes=None: whatever arrived since the last drain (maybe none
+            # when nothing plays; the analyzer then reports silence).
+            self._publish(analyzer.process(stream.record(numframes=None)))
             if time.monotonic() - last_check >= self._device_check:
                 last_check = time.monotonic()
                 if self._default_device() != device:
