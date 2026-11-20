@@ -18,13 +18,16 @@ where the screens are **not physically aligned**.
 - Tray menu: pause, settings, align monitors, about, quit
 - Settings window with live preview (speed, wave height, glow, texture, FPS)
   and "start with Windows"
-- Single standalone `ginga.exe`, no install needed
+- Portable: unzip and run, no installer
 
 ## Install
 
-1. Download `ginga.exe` from the [latest release](https://github.com/felipefernandes/ginga-wallpaper/releases/latest).
-2. Put it in a permanent folder (e.g. `%LOCALAPPDATA%\Programs\ginga`) and run it.
-   Windows SmartScreen may warn because the exe is not signed: *More info → Run anyway*.
+1. Download `ginga-<version>-windows.zip` from the [latest release](https://github.com/felipefernandes/ginga-wallpaper/releases/latest).
+2. Extract the `ginga` folder somewhere permanent (e.g. `%LOCALAPPDATA%\Programs\ginga`)
+   and run `ginga.exe` inside it (keep the `_internal` folder next to it).
+   The exe is not code-signed yet, so Windows SmartScreen may warn (*More info → Run anyway*)
+   and some antivirus heuristics may flag it as a false positive; the source and the
+   build script are in this repo.
 3. Right-click the wave icon in the tray:
    - **Alinhar monitores…** (align monitors): arrows move the image on the
      selected monitor until the guide lines are continuous (Shift = 10 px,
@@ -46,7 +49,7 @@ pytest
 python -m ginga                 # run the app from source
 ```
 
-Build `dist/ginga.exe`:
+Build `dist/ginga/ginga.exe` and the release zip:
 
 ```bash
 pip install -e ".[build]"
