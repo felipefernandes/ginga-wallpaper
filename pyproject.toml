@@ -27,7 +27,7 @@ ginga = "ginga.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-ginga = ["shaders/*.glsl"]
+"ginga.shaders" = ["*.glsl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
