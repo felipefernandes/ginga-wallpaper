@@ -1,9 +1,13 @@
-"""Build dist/ginga/ (ginga.exe + _internal/) and zip it for a release.
+"""Build dist/ginga/ (ginga.exe + _internal/), zip it, and build the installer.
 
 One-folder rather than one-file on purpose: a one-file exe unpacks itself to
 %TEMP% at every start, which antivirus heuristics associate with trojans (the
 owner's Kaspersky flagged v1.0). We also embed Windows version info and never
 UPX-compress. The real fix is code signing.
+
+The installer (dist/ginga-<ver>-setup.exe, per-user, no admin) is compiled
+from packaging/ginga.iss with Inno Setup 6 when ISCC.exe is found (env var
+ISCC, PATH, or the default install folders); otherwise that step is skipped.
 
 Usage (inside the venv, with `pip install -e .[build]`):
     python scripts/build_exe.py
@@ -13,6 +17,8 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
+from collections.abc import Callable, Mapping
 from importlib.metadata import version
 from pathlib import Path
 
@@ -84,6 +90,49 @@ def glfw_binaries() -> list[str]:
     return args
 
 
+def find_iscc(
+    env: Mapping[str, str] = os.environ,
+    which: Callable[[str], str | None] = shutil.which,
+) -> Path | None:
+    """Inno Setup's command-line compiler: $ISCC, then PATH, then default installs."""
+    if env.get("ISCC"):
+        return Path(env["ISCC"])
+    found = which("ISCC")
+    if found:
+        return Path(found)
+    roots = [
+        Path(env["LOCALAPPDATA"]) / "Programs" if env.get("LOCALAPPDATA") else None,
+        Path(env["ProgramFiles(x86)"]) if env.get("ProgramFiles(x86)") else None,
+        Path(env["ProgramFiles"]) if env.get("ProgramFiles") else None,
+    ]
+    for root in filter(None, roots):
+        candidate = root / "Inno Setup 6" / "ISCC.exe"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def iscc_command(iscc: Path, ver: str) -> list[str]:
+    return [
+        str(iscc),
+        "/Q",
+        f"/DAppVersion={ver}",
+        f"/DSourceDir={DIST / 'ginga'}",
+        f"/DOutputDir={DIST}",
+        f"/DIconFile={BUILD / 'ginga.ico'}",
+        str(ROOT / "packaging" / "ginga.iss"),
+    ]
+
+
+def build_installer(ver: str) -> Path | None:
+    iscc = find_iscc()
+    if iscc is None:
+        print("Inno Setup 6 (ISCC.exe) not found: skipping the installer.")
+        return None
+    subprocess.run(iscc_command(iscc, ver), check=True)
+    return DIST / f"ginga-{ver}-setup.exe"
+
+
 def main() -> None:
     ver = version("ginga-wallpaper")
     shaders = ROOT / "src" / "ginga" / "shaders"
@@ -109,6 +158,9 @@ def main() -> None:
     ])
     archive = shutil.make_archive(str(DIST / f"ginga-{ver}-windows"), "zip", DIST, "ginga")
     print(f"Built {DIST / 'ginga' / 'ginga.exe'} and {archive}")
+    installer = build_installer(ver)
+    if installer:
+        print(f"Built {installer}")
 
 
 if __name__ == "__main__":
