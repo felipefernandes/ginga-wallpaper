@@ -123,6 +123,15 @@ def glfw_monitors() -> list[Monitor]:
 
 
 class Renderer:
+    # Subclass hooks: an interactive renderer floats on top with keyboard focus.
+    interactive = False
+
+    def _init_overlay(self) -> None:
+        """Create extra GL resources (called once the context exists)."""
+
+    def _draw_overlay(self, viewport: Viewport, view: MonitorView) -> None:
+        """Draw on top of the wave for one monitor (its viewport is bound)."""
+
     def __init__(
         self,
         config: Config,
@@ -234,8 +243,10 @@ class Renderer:
         glfw.window_hint(glfw.DECORATED, False)
         glfw.window_hint(glfw.RESIZABLE, False)
         glfw.window_hint(glfw.VISIBLE, False)
-        glfw.window_hint(glfw.FOCUS_ON_SHOW, False)
-        glfw.window_hint(glfw.FOCUSED, False)
+        # An interactive overlay (calibration) sits on top and takes the keyboard.
+        glfw.window_hint(glfw.FLOATING, self.interactive)
+        glfw.window_hint(glfw.FOCUS_ON_SHOW, self.interactive)
+        glfw.window_hint(glfw.FOCUSED, self.interactive)
         glfw.window_hint(glfw.AUTO_ICONIFY, False)
         glfw.window_hint(glfw.SCALE_TO_MONITOR, False)
 
@@ -253,12 +264,15 @@ class Renderer:
 
         self._ctx = moderngl.create_context()
         self._program = WaveProgram(self._ctx)
+        self._init_overlay()
         if self._attach_to_desktop:
             from ginga.desktop import attach
 
             self._attachment = attach(self.hwnd)
         self._apply_layout()
         glfw.show_window(self._window)
+        if self.interactive:
+            glfw.focus_window(self._window)
         log.info("Renderer started (OpenGL %s)", self._ctx.info.get("GL_VERSION"))
 
     def _teardown(self) -> None:
@@ -356,5 +370,6 @@ class Renderer:
         for viewport, view in self._plan:
             ctx.viewport = viewport
             self._program.draw(self._layout, view, t, self.config.wave)
+            self._draw_overlay(viewport, view)
         glfw.swap_buffers(self._window)
         self.frames += 1
