@@ -52,11 +52,13 @@ v1.0 released (tag `v1.0`, GitHub release with `ginga.exe`): renderer, desktop a
 
 Packaging notes: one-FOLDER build (`dist/ginga/` + release zip), not one-file: the owner's Kaspersky flagged the v1.0 one-file exe as a Trojan (PyInstaller one-file self-extraction is a classic heuristic trigger). The build embeds VERSIONINFO and uses `--noupx`; real fix is code signing. pyGLFW loads `glfw3.dll` via ctypes, so `scripts/build_exe.py` ships it into `<bundle>/glfw/` explicitly (the "glfw3.dll not found" warning is expected). Bump `version` in `pyproject.toml` before a release (shown in "Sobre…" and the exe details).
 
-v1.0.1 (one-folder build after a Kaspersky false positive) is on branch `fix/av-false-positive`, not yet pushed: the owner must explicitly approve push/PR/tag/release.
+v1.0.1 released (one-folder build after a Kaspersky false positive; OpenTIP: clean).
 
-In progress: v2 audio mode on `feat/v2-audio` (analysis, capture, shader, renderer, Settings section done; needs a live listen with the owner). Steady-state cost ~2.5% of one core with audio on; zero while paused.
+v2.0 "modo berimbau" on `feat/v2-audio`: analysis, capture, shader, renderer, Settings section; owner approved it live. Steady-state cost ~2.5% of one core with audio on; zero while paused. Build collects `soundcard` data (its cffi reads `*.py.h` at runtime). Settings "Save" always rewrites the Run key so stale paths from older installs get fixed.
+
+Next: v3 (below).
 
 ## Roadmap
 
-- v2: audio-reactive mode ("modo berimbau"): the wave reacts to the PC's audio output.
+- v2: audio-reactive mode ("modo berimbau"): done (2.0).
 - v3: load any wallpaper (static images first, then video/GIF) from Settings, spanning the monitors with the same calibration. This is the owner's original frustration: big wallpapers on physically misaligned monitors.

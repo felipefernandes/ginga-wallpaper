@@ -223,14 +223,12 @@ class SettingsWindow:
 
     def save(self) -> None:
         self.app.update_settings(self.working, persist=True)
-        wanted = bool(self._autostart_var.get())
-        if wanted != _autostart_enabled():
-            try:
-                from ginga import autostart
+        try:
+            from ginga import autostart
 
-                autostart.set_enabled(wanted)
-            except OSError:
-                log.exception("Could not change start-with-Windows")
+            autostart.apply(bool(self._autostart_var.get()))
+        except (ImportError, OSError):
+            log.exception("Could not change start-with-Windows")
         self._close()
 
     def cancel(self) -> None:

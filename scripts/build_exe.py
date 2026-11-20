@@ -101,6 +101,7 @@ def main() -> None:
         "--add-data", f"{shaders / '*.glsl'}{os.pathsep}ginga/shaders",
         "--copy-metadata", "ginga-wallpaper",   # version shown in "Sobre…"
         "--hidden-import", "pystray._win32",
+        "--collect-data", "soundcard",          # its cffi reads *.py.h headers at runtime
         *glfw_binaries(),
         "--distpath", str(DIST),
         "--workpath", str(BUILD),
