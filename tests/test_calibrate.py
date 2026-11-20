@@ -126,3 +126,13 @@ def test_hud_text_fits_inside_the_hud():
     )
     assert right <= HUD_SIZE[0] - HUD_TEXT_POS[0]
     assert bottom <= HUD_SIZE[1]
+
+
+def test_space_toggles_frozen_animation_and_hud_says_so():
+    cal = make()
+    assert not cal.frozen
+    assert cal.handle("space") is None
+    assert cal.frozen and "PAUSADO" in cal.hud_text()
+    cal.handle("space")
+    assert not cal.frozen and "PAUSADO" not in cal.hud_text()
+    assert "Espaço" in cal.hud_text()

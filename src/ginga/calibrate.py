@@ -3,7 +3,7 @@
 A topmost window shows the wave plus guide lines drawn in canvas space. The
 arrows move the *image* on the selected monitor (Up = image goes up = +y
 offset, which is what a physically lower monitor needs). Shift moves 10 px,
-Tab switches monitor, Enter saves, Esc cancels.
+Tab switches monitor, Space freezes the wave, Enter saves, Esc cancels.
 
 `Calibration` is the pure keyboard logic; `CalibrationRenderer` draws it.
 """
@@ -38,6 +38,7 @@ class Calibration:
         for mid in self.ids:
             self.offsets.setdefault(mid, Offset())
         self.selected = self.ids[1] if len(self.ids) > 1 else self.ids[0]
+        self.frozen = False  # wave paused so guides are easier to line up
 
     def handle(self, key: str, shift: bool = False) -> str | None:
         """Apply a key; returns "save" or "cancel" when calibration should end."""
@@ -45,7 +46,9 @@ class Calibration:
             return "save"
         if key == "esc":
             return "cancel"
-        if key == "tab":
+        if key == "space":
+            self.frozen = not self.frozen
+        elif key == "tab":
             index = self.ids.index(self.selected)
             self.selected = self.ids[(index + 1) % len(self.ids)]
         elif key in MOVES:
@@ -57,10 +60,11 @@ class Calibration:
 
     def hud_text(self) -> str:
         off = self.offsets[self.selected]
+        state = "   ·   PAUSADO" if self.frozen else ""
         return (
-            f"Monitor {self.selected}   x {off.x:+d}   y {off.y:+d}\n"
+            f"Monitor {self.selected}   x {off.x:+d}   y {off.y:+d}{state}\n"
             "Setas movem a imagem (Shift = 10 px)  ·  Tab troca monitor  ·  "
-            "Enter salva  ·  Esc cancela"
+            "Espaço pausa  ·  Enter salva  ·  Esc cancela"
         )
 
 
@@ -93,6 +97,10 @@ class CalibrationRenderer(Renderer):
         self.calibration: Calibration | None = None
         self.result: str | None = None
         self._hud_dirty = True
+
+    @property
+    def animating(self) -> bool:
+        return self.calibration is None or not self.calibration.frozen
 
     def _init_overlay(self) -> None:
         import moderngl
@@ -160,7 +168,7 @@ class CalibrationRenderer(Renderer):
         names = {
             glfw.KEY_UP: "up", glfw.KEY_DOWN: "down", glfw.KEY_LEFT: "left",
             glfw.KEY_RIGHT: "right", glfw.KEY_TAB: "tab", glfw.KEY_ENTER: "enter",
-            glfw.KEY_KP_ENTER: "enter", glfw.KEY_ESCAPE: "esc",
+            glfw.KEY_KP_ENTER: "enter", glfw.KEY_ESCAPE: "esc", glfw.KEY_SPACE: "space",
         }
         name = names.get(key)
         if name is None:

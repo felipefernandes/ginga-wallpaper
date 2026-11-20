@@ -32,7 +32,7 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 | `src/ginga/wave.py` + `shaders/` | Procedural light-wave shader; all math in canvas pixel space so split views are seamless (tested) |
 | `src/ginga/renderer.py` | Frame loop: borderless GLFW window over the desktop, viewport per monitor, own FPS pacing (no vsync), auto/manual pause; `stop`/`set_paused`/`reload` are thread-safe |
 | `src/ginga/desktop.py` | Attach behind icons after Progman `0x052C`. 24H2+: child of Progman right below `SHELLDLL_DefView`, and it **must be `WS_EX_LAYERED`** (alpha 255) or DWM never shows it. Legacy: child of the `WorkerW` after the icon host. Explorer restart kills the window: `Renderer.desktop_lost` tells the caller to recreate it |
-| `src/ginga/calibrate.py` + `guides.frag.glsl` | `CalibrationRenderer` (topmost, interactive `Renderer` subclass): canvas-space guide lines + Pillow-rendered HUD. Arrows move the *image* (Up = +y, what a physically lower monitor needs), Shift 10px, Tab, Enter saves, Esc cancels |
+| `src/ginga/calibrate.py` + `guides.frag.glsl` | `CalibrationRenderer` (topmost, interactive `Renderer` subclass): canvas-space guide lines + Pillow-rendered HUD. Arrows move the *image* (Up = +y, what a physically lower monitor needs), Shift 10px, Tab, Space freezes the wave, Enter saves, Esc cancels |
 
 ## Owner's hardware
 

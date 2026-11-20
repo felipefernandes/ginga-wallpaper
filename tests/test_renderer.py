@@ -56,6 +56,14 @@ class TestAnimationClock:
         clock.tick(now=0.0)
         assert clock.tick(now=600.0) == pytest.approx(0.25)
 
+    def test_frozen_ticks_hold_time_and_resume_without_jump(self):
+        clock = AnimationClock()
+        clock.tick(now=0.0)
+        clock.tick(now=0.5)
+        assert clock.tick(now=1.0, running=False) == pytest.approx(0.5)
+        assert clock.tick(now=5.0, running=False) == pytest.approx(0.5)
+        assert clock.tick(now=5.1) == pytest.approx(0.6)
+
     def test_clock_going_backwards_is_ignored(self):
         clock = AnimationClock()
         clock.tick(now=10.0)

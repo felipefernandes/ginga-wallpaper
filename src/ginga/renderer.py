@@ -78,8 +78,9 @@ class AnimationClock:
         self._time = 0.0
         self._last: float | None = None
 
-    def tick(self, now: float) -> float:
-        if self._last is not None:
+    def tick(self, now: float, running: bool = True) -> float:
+        """Advance to `now`; with `running=False` time holds (frozen frame)."""
+        if self._last is not None and running:
             self._time += min(max(0.0, now - self._last), self.max_step)
         self._last = now
         return self._time
@@ -125,6 +126,11 @@ def glfw_monitors() -> list[Monitor]:
 class Renderer:
     # Subclass hooks: an interactive renderer floats on top with keyboard focus.
     interactive = False
+
+    @property
+    def animating(self) -> bool:
+        """False freezes the wave while frames keep drawing (e.g. overlays update)."""
+        return True
 
     def _init_overlay(self) -> None:
         """Create extra GL resources (called once the context exists)."""
@@ -363,7 +369,7 @@ class Renderer:
     def _draw(self, now: float) -> None:
         import glfw
 
-        t = self._clock.tick(now)
+        t = self._clock.tick(now, running=self.animating)
         ctx = self._ctx
         ctx.viewport = (0, 0, *self._size)
         ctx.clear(0.0, 0.0, 0.0)  # areas no monitor covers (mixed heights)
