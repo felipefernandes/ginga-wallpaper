@@ -1,0 +1,81 @@
+from pathlib import Path
+
+import pytest
+
+from ginga.config import Config, Offset, load_config, save_config
+
+
+def test_load_missing_file_returns_defaults(tmp_path: Path):
+    cfg = load_config(tmp_path / "nope.toml")
+
+    assert cfg == Config()
+    assert cfg.render.fps == 30
+    assert cfg.render.pause_when_fullscreen is True
+    assert cfg.offsets == {}
+
+
+def test_save_then_load_roundtrip(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    cfg = Config()
+    cfg.render.fps = 24
+    cfg.wave.speed = 1.5
+    cfg.offsets["2"] = Offset(x=0, y=120)
+
+    save_config(cfg, path)
+
+    assert load_config(path) == cfg
+
+
+def test_partial_file_keeps_defaults_for_missing_keys(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    path.write_text("[render]\nfps = 60\n", encoding="utf-8")
+
+    cfg = load_config(path)
+
+    assert cfg.render.fps == 60
+    assert cfg.render.pause_when_fullscreen is True
+    assert cfg.wave == Config().wave
+
+
+def test_unknown_keys_are_ignored(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    path.write_text("[render]\nfps = 20\nbogus = 1\n[extra]\na = 1\n", encoding="utf-8")
+
+    assert load_config(path).render.fps == 20
+
+
+@pytest.mark.parametrize("fps, expected", [(0, 1), (-5, 1), (500, 144), (45, 45)])
+def test_fps_is_clamped(tmp_path: Path, fps: int, expected: int):
+    path = tmp_path / "config.toml"
+    path.write_text(f"[render]\nfps = {fps}\n", encoding="utf-8")
+
+    assert load_config(path).render.fps == expected
+
+
+def test_invalid_toml_falls_back_to_defaults(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    path.write_text("this is [not toml", encoding="utf-8")
+
+    assert load_config(path) == Config()
+
+
+def test_save_creates_parent_dirs(tmp_path: Path):
+    path = tmp_path / "a" / "b" / "config.toml"
+
+    save_config(Config(), path)
+
+    assert path.exists()
+
+
+def test_wrong_types_are_ignored(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    path.write_text(
+        '[render]\nfps = true\npause_when_fullscreen = "yes"\n[wave]\nspeed = 2\n',
+        encoding="utf-8",
+    )
+
+    cfg = load_config(path)
+
+    assert cfg.render.fps == 30
+    assert cfg.render.pause_when_fullscreen is True
+    assert cfg.wave.speed == 2.0
