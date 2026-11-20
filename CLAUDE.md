@@ -42,7 +42,6 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 Done: 1 scaffold, 2 config, 3 layout, 4 fullscreen detection logic, 5 shader + previews (visual approved), 6 renderer (`scripts/run_renderer.py` runs it standalone and reports fps/CPU).
 
 Next (only testable on Windows; run and iterate with the user):
-6. `renderer.py`: one borderless GL window over the whole desktop, viewport per monitor, FPS cap, pause hook.
 7. `desktop.py`: attach the window behind desktop icons (Progman `0x052C` -> `WorkerW`).
 8. `calibrate.py`: overlay mode with guide lines; arrows move a monitor's offset (Shift = 10px), Tab switches monitor, Enter saves, Esc cancels.
 9. `tray.py` + `__main__.py`: tray menu (pause, calibrate, reload, quit), wire everything.
