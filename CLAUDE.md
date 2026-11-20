@@ -30,6 +30,7 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 | `src/ginga/layout.py` | Monitors + offsets -> continuous virtual canvas; monitor ids are left-to-right order (`"1"`, `"2"`); `gl_viewport` maps a monitor into one window covering the whole desktop |
 | `src/ginga/gamemode.py` | `should_pause`: foreground window covering a full monitor (ignoring shell windows) pauses rendering |
 | `src/ginga/wave.py` + `shaders/` | Procedural light-wave shader; all math in canvas pixel space so split views are seamless (tested) |
+| `src/ginga/renderer.py` | Frame loop: borderless GLFW window over the desktop, viewport per monitor, own FPS pacing (no vsync), auto/manual pause; `stop`/`set_paused`/`reload` are thread-safe |
 
 ## Owner's hardware
 
@@ -38,7 +39,7 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 
 ## Status (v1)
 
-Done: 1 scaffold, 2 config, 3 layout, 4 fullscreen detection logic, 5 shader + previews (visual approved).
+Done: 1 scaffold, 2 config, 3 layout, 4 fullscreen detection logic, 5 shader + previews (visual approved), 6 renderer (`scripts/run_renderer.py` runs it standalone and reports fps/CPU).
 
 Next (only testable on Windows; run and iterate with the user):
 6. `renderer.py`: one borderless GL window over the whole desktop, viewport per monitor, FPS cap, pause hook.
