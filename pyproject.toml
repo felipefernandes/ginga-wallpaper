@@ -13,7 +13,6 @@ dependencies = [
     "moderngl>=5.10",
     "numpy>=1.26",
     "tomli-w>=1.0",
-    "pywin32>=306; sys_platform == 'win32'",
     "pystray>=0.19; sys_platform == 'win32'",
     "pillow>=10",
 ]
