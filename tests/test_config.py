@@ -98,3 +98,34 @@ def test_invalid_audio_values_fall_back(tmp_path: Path):
     path.write_text('[audio]\nenabled = "yes"\nsensitivity = 2\n', encoding="utf-8")
     cfg = load_config(path)
     assert cfg.audio.enabled is False and cfg.audio.sensitivity == 2.0
+
+
+def test_background_defaults_to_the_wave(tmp_path: Path):
+    cfg = load_config(tmp_path / "nope.toml")
+
+    assert cfg.background.kind == "wave"
+    assert cfg.background.path == ""
+    assert cfg.background.fit == "fill"
+
+
+def test_background_roundtrip(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    cfg = Config()
+    cfg.background.kind = "media"
+    cfg.background.path = r"C:\Users\me\Pictures\big.jpg"
+    cfg.background.fit = "fit"
+
+    save_config(cfg, path)
+
+    assert load_config(path).background == cfg.background
+
+
+def test_unknown_background_choices_fall_back_to_defaults(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    path.write_text('[background]\nkind = "plasma"\nfit = "zoom"\npath = "x.png"\n', encoding="utf-8")
+
+    cfg = load_config(path)
+
+    assert cfg.background.kind == "wave"
+    assert cfg.background.fit == "fill"
+    assert cfg.background.path == "x.png"

@@ -104,3 +104,50 @@ def test_audio_section_has_a_toggle_and_a_sensitivity_slider():
     assert get_toggle(cfg, toggle) is False
     on = with_toggle(cfg, toggle, True)
     assert on.audio.enabled is True and cfg.audio.enabled is False  # copy, not mutation
+
+
+# -- background ------------------------------------------------------------------------
+
+
+def test_choosing_a_file_switches_to_media_and_keeps_the_rest():
+    from ginga.settings import with_background
+
+    cfg = Config()
+    new = with_background(cfg, path=r"C:\pics\wide.jpg")
+
+    assert new.background.kind == "media"
+    assert new.background.path == r"C:\pics\wide.jpg"
+    assert new.background.fit == "fill"
+    assert cfg.background.kind == "wave"  # original untouched
+    assert new.wave == cfg.wave
+
+
+def test_back_to_the_wave_remembers_the_file():
+    from ginga.settings import with_background
+
+    cfg = with_background(Config(), path="a.png", fit="fit")
+    wave = with_background(cfg, kind="wave")
+
+    assert wave.background.kind == "wave"
+    assert wave.background.path == "a.png" and wave.background.fit == "fit"
+
+
+def test_media_problem_explains_unusable_files(tmp_path):
+    from PIL import Image
+
+    from ginga.settings import media_problem
+
+    Image.new("RGB", (8, 8)).save(tmp_path / "ok.png")
+    (tmp_path / "bad.jpg").write_text("nope")
+
+    assert media_problem(str(tmp_path / "ok.png")) is None
+    assert "abrir" in media_problem(str(tmp_path / "bad.jpg"))
+    assert "abrir" in media_problem(str(tmp_path / "gone.png"))
+    assert media_problem("") is not None
+
+
+def test_fit_labels_cover_every_fit():
+    from ginga.config import FITS
+    from ginga.settings import FIT_LABELS
+
+    assert [key for key, _ in FIT_LABELS] == list(FITS)

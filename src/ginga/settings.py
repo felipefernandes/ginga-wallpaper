@@ -8,6 +8,7 @@ Calibration offsets are not edited here (see App.update_settings).
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 from dataclasses import dataclass
 
 from ginga.config import Config, Offset
@@ -98,3 +99,51 @@ def offsets_summary(offsets: dict[str, Offset]) -> str:
         if o.x or o.y
     ]
     return "  ·  ".join(adjusted) or "Sem ajuste: monitores alinhados pelo Windows"
+
+
+# -- background -------------------------------------------------------------------------
+
+FIT_LABELS: tuple[tuple[str, str], ...] = (
+    ("fill", "Preencher (corta as bordas)"),
+    ("fit", "Ajustar (mostra tudo)"),
+    ("stretch", "Esticar"),
+)
+
+MEDIA_FILETYPES = (
+    ("Imagens, GIFs e vídeos",
+     "*.jpg *.jpeg *.png *.bmp *.webp *.gif *.tif *.tiff *.mp4 *.m4v *.mkv *.webm *.mov *.avi *.wmv"),
+    ("Imagens", "*.jpg *.jpeg *.png *.bmp *.webp *.tif *.tiff"),
+    ("GIFs", "*.gif"),
+    ("Vídeos", "*.mp4 *.m4v *.mkv *.webm *.mov *.avi *.wmv"),
+    ("Todos os arquivos", "*.*"),
+)
+
+
+def with_background(
+    config: Config, kind: str | None = None, path: str | None = None, fit: str | None = None,
+) -> Config:
+    """Copy of `config` with the background changed; picking a file selects it."""
+    new = copy.deepcopy(config)
+    bg = new.background
+    if path is not None:
+        bg.path = path
+        bg.kind = "media"
+    if kind is not None:
+        bg.kind = kind
+    if fit is not None:
+        bg.fit = fit
+    return new
+
+
+def media_problem(path: str) -> str | None:
+    """Why `path` cannot be the wallpaper (PT-BR, for the Settings window), or None."""
+    from ginga import media
+
+    if not path:
+        return "Nenhum arquivo escolhido."
+    try:
+        source = media.open_media(Path(path), (64, 64), "fill")
+    except media.MediaError:
+        return "Não foi possível abrir este arquivo como imagem, GIF ou vídeo."
+    source.close()
+    return None

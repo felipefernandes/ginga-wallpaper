@@ -6,6 +6,7 @@ Ctrl+C or --seconds stops either.
 
 Usage:
     python scripts/run_renderer.py --seconds 10 [--desktop] [--audio] [--fps 30] [--pause-after 5]
+        [--no-autopause] [--media FILE [--fit fill|fit|stretch]]
 """
 
 from __future__ import annotations
@@ -26,6 +27,9 @@ def main() -> None:
     parser.add_argument("--pause-after", type=float, help="manually pause after N seconds")
     parser.add_argument("--desktop", action="store_true", help="attach behind the desktop icons")
     parser.add_argument("--audio", action="store_true", help="enable the audio-reactive mode")
+    parser.add_argument("--no-autopause", action="store_true", help="keep drawing over fullscreen apps")
+    parser.add_argument("--media", help="show this image/GIF/video instead of the wave")
+    parser.add_argument("--fit", choices=("fill", "fit", "stretch"), help="media fit")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
@@ -34,6 +38,12 @@ def main() -> None:
         config.render.fps = args.fps
     if args.audio:
         config.audio.enabled = True
+    if args.no_autopause:
+        config.render.pause_when_fullscreen = False
+    if args.media:
+        config.background.kind, config.background.path = "media", args.media
+    if args.fit:
+        config.background.fit = args.fit
     renderer = Renderer(config, attach_to_desktop=args.desktop)
 
     timers = [threading.Timer(args.seconds, renderer.stop)]

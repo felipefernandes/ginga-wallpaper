@@ -1,6 +1,9 @@
 """Draw the wallpaper into one borderless window covering the whole desktop.
 
 Each monitor gets its own GL viewport showing its view of the shared canvas.
+The background (wave or media file, see background.py) decides how often to
+draw: the wave every frame, a video when it has a new frame, a still image
+only after something changed (layout, settings, resume).
 The frame loop is built from small pure helpers (tested); `Renderer` is the
 thin GLFW/moderngl wrapper around them.
 
@@ -186,7 +189,10 @@ class Renderer:
 
         self._window = None
         self._ctx = None
-        self._program = None
+        self._background = None
+        self._background_dirty = True
+        self._repaint = 0          # frames still owed to a non-continuous background
+        self._was_paused = False
         self._monitors: list[Monitor] = []
         self._layout: Layout | None = None
         self._plan: list[tuple[Viewport, MonitorView]] = []
@@ -236,9 +242,19 @@ class Renderer:
                     self._periodic_checks()
                 if self._layout_dirty:
                     self._apply_layout()
+                if self._background_dirty:
+                    self._apply_background()
                 self._sync_audio()
+                self._sync_playback()
 
                 if self.paused:
+                    glfw.wait_events_timeout(PAUSED_WAIT)
+                    continue
+                if not self._background.continuous and self._background.update():
+                    self._repaint = max(self._repaint, 1)
+                if not self._background.continuous and not self._repaint:
+                    # Nothing changed on screen: sleep until the player posts a
+                    # new frame (video/GIF) or something else wakes us.
                     glfw.wait_events_timeout(PAUSED_WAIT)
                     continue
 
@@ -250,6 +266,7 @@ class Renderer:
                     continue
 
                 self._draw(now)
+                self._repaint = max(0, self._repaint - 1)
                 self._limiter.mark(now)
                 glfw.poll_events()
         finally:
@@ -258,8 +275,6 @@ class Renderer:
     def _setup(self) -> None:
         import glfw
         import moderngl
-
-        from ginga.wave import WaveProgram
 
         if not glfw.init():
             raise RuntimeError("Could not initialize GLFW")
@@ -291,13 +306,13 @@ class Renderer:
             self.hwnd = glfw.get_win32_window(self._window) or 0
 
         self._ctx = moderngl.create_context()
-        self._program = WaveProgram(self._ctx)
         self._init_overlay()
         if self._attach_to_desktop:
             from ginga.desktop import attach
 
             self._attachment = attach(self.hwnd)
         self._apply_layout()
+        self._apply_background()
         glfw.show_window(self._window)
         if self.interactive:
             glfw.focus_window(self._window)
@@ -308,6 +323,9 @@ class Renderer:
 
         if self._audio is not None:
             self._audio.stop()
+        if self._background is not None:
+            self._background.release()
+            self._background = None
 
         if self._ctx is not None:
             self._ctx.release()
@@ -323,6 +341,8 @@ class Renderer:
         config, self._pending_config = self._pending_config, None
         if config is None:
             return
+        if config.background != self.config.background:
+            self._background_dirty = True
         self.config = config
         self._limiter.fps = config.render.fps
         self._limiter.reset()
@@ -355,10 +375,43 @@ class Renderer:
         self._plan = plan_viewports(self._layout, desktop)
         self._size = (desktop.width, desktop.height)
         self.place_window(desktop)
+        if self._background is not None:
+            self._background.set_canvas(self._canvas_size())
+        self.request_repaint()
         log.info(
             "Layout: desktop %s, canvas %dx%d",
             desktop, self._layout.canvas_width, self._layout.canvas_height,
         )
+
+    def _canvas_size(self) -> tuple[int, int]:
+        if self._layout is None:
+            return (1, 1)
+        return (self._layout.canvas_width, self._layout.canvas_height)
+
+    def _apply_background(self) -> None:
+        from ginga.background import create_background
+
+        self._background_dirty = False
+        if self._background is not None:
+            self._background.release()
+        self._background = create_background(
+            self._ctx, self.config.background, self._canvas_size(), wake=self._wake
+        )
+        self.request_repaint()
+
+    def request_repaint(self) -> None:
+        """Draw again even if the background has not changed (main thread).
+
+        Two frames, so both swap-chain buffers hold the current image."""
+        self._repaint = 2
+
+    def _sync_playback(self) -> None:
+        """Media plays only while the wallpaper is shown and not frozen."""
+        playing = not self.paused and self.animating
+        self._background.set_running(playing)
+        if self._was_paused and not self.paused:
+            self.request_repaint()
+        self._was_paused = self.paused
 
     def place_window(self, desktop: Rect) -> None:
         """Move/resize the window over `desktop` (screen coordinates)."""
@@ -372,7 +425,12 @@ class Renderer:
 
     def _sync_audio(self) -> None:
         """Capture audio only while it is wanted: enabled and actually drawing."""
-        want = self.audio_supported and self.config.audio.enabled and not self.paused
+        want = (
+            self.audio_supported
+            and self.config.audio.enabled
+            and self._background.uses_audio
+            and not self.paused
+        )
         if want and (self._audio is None or not self._audio.running):
             if self._audio is None:
                 from ginga.audio_capture import AudioCapture
@@ -429,7 +487,7 @@ class Renderer:
         ctx.clear(0.0, 0.0, 0.0)  # areas no monitor covers (mixed heights)
         for viewport, view in self._plan:
             ctx.viewport = viewport
-            self._program.draw(self._layout, view, t, self.config.wave, audio=audio)
+            self._background.draw(self._layout, view, t, self.config, audio=audio)
             self._draw_overlay(viewport, view)
         glfw.swap_buffers(self._window)
         self.frames += 1
