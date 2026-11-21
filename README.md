@@ -9,7 +9,12 @@ where the screens are **not physically aligned**.
 
 ## Features
 
-- Procedural light-wave shader (GPU, no video decoding)
+- **Your own wallpaper** (v3): any image, GIF or video spans all monitors as
+  one picture and follows the alignment, so big wallpapers finally line up
+  across misaligned screens. Fill, fit or stretch. A still image costs
+  nothing after it is drawn; video uses NVIDIA hardware decoding when
+  available and stops while a game is fullscreen
+- Procedural light-wave shader (GPU)
 - **Modo berimbau** (v2): the wave dances to whatever the PC plays. Its spikes
   become a live spectrum across all monitors (bass on the left), bass swells
   the wave and loudness pulses the glow. Off by default; ~2.5% of one CPU
@@ -20,8 +25,8 @@ where the screens are **not physically aligned**.
 - Lives behind the desktop icons (Windows 11 24H2+ and older layouts)
 - Pauses itself while a game or video runs fullscreen
 - Tray menu: pause, settings, align monitors, about, quit
-- Settings window with live preview (speed, wave height, glow, texture,
-  audio mode and sensitivity, FPS) and "start with Windows"
+- Settings window with live preview (background, speed, wave height, glow,
+  texture, audio mode and sensitivity, FPS) and "start with Windows"
 - Per-user installer (no admin) with uninstall in *Settings > Apps*, or a portable zip
 
 ## Install
@@ -43,8 +48,9 @@ where the screens are **not physically aligned**.
    - **Alinhar monitores…** (align monitors): arrows move the image on the
      selected monitor until the guide lines are continuous (Shift = 10 px,
      Tab = next monitor, Space = freeze the wave, Enter = save, Esc = cancel).
-   - **Configurações…** (settings): tweak the look, tick *Reagir ao som do PC*
-     for the audio mode, and *Iniciar com o Windows* to start with Windows.
+   - **Configurações…** (settings): under *Fundo* pick *Imagem, GIF ou vídeo*
+     and choose a file to use your own wallpaper; tweak the wave, tick
+     *Reagir ao som do PC* for the audio mode, and *Iniciar com o Windows*.
 
 Logs: `%APPDATA%\ginga\ginga.log`.
 
@@ -90,6 +96,11 @@ amplitude = 1.0
 glow = 1.0
 spikes = 1.0
 
+[background]
+kind = "media"          # "wave" or "media"
+path = 'C:/Users/me/Pictures/panorama.jpg'
+fit = "fill"            # "fill" (crop), "fit" (bars) or "stretch"
+
 [offsets.2]   # monitors are numbered left to right
 x = 0
 y = 120
@@ -99,7 +110,7 @@ y = 120
 
 - ~~**v2**: audio-reactive mode ("modo berimbau")~~ done in 2.0.
 - ~~**v2.1**: per-user installer with uninstall~~ done in 2.1.
-- **v3**: use any wallpaper (images first, then video/GIF) spanning the
-  monitors with the same alignment.
+- ~~**v3**: any image, GIF or video spanning the monitors with the same
+  alignment~~ done in 3.0.
 
 Made by Felipe Fernandes.

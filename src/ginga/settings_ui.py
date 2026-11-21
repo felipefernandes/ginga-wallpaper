@@ -11,18 +11,23 @@ from __future__ import annotations
 import copy
 import logging
 import threading
+from pathlib import Path
 
 from ginga.app import App
 from ginga.config import Config
 from ginga.settings import (
     FIELDS,
+    FIT_LABELS,
+    MEDIA_FILETYPES,
     TOGGLES,
     Field,
     Toggle,
     format_value,
     get_toggle,
     get_value,
+    media_problem,
     offsets_summary,
+    with_background,
     with_toggle,
     with_value,
 )
@@ -33,6 +38,7 @@ PREVIEW_DELAY_MS = 80    # debounce slider drags before touching the renderer
 POLL_MS = 250            # bring-to-front requests and offsets label refresh
 
 SECTIONS = (("Animação", "wave"), ("Modo berimbau", "audio"), ("Desempenho", "render"))
+WAVE_ONLY = ("wave", "audio")  # sections that only affect the procedural wave
 
 _lock = threading.Lock()
 _thread: threading.Thread | None = None
@@ -78,6 +84,7 @@ class SettingsWindow:
         self._values: dict[str, tk.DoubleVar] = {}
         self._labels: dict[str, ttk.Label] = {}
         self._toggles: dict[str, tk.BooleanVar] = {}
+        self._section_widgets: dict[str, list] = {}
 
         root = self.root = tk.Tk()
         root.title("ginga wallpaper — Configurações")
@@ -89,13 +96,14 @@ class SettingsWindow:
             style.theme_use("vista")
         style.configure("Section.TLabel", font=("Segoe UI Semibold", 11))
         style.configure("Hint.TLabel", foreground="#6b6b6b", font=("Segoe UI", 8))
+        style.configure("Error.TLabel", foreground="#b3261e", font=("Segoe UI", 8))
 
         body = ttk.Frame(root, padding=(20, 16, 20, 8))
         body.grid(sticky="nsew")
-        row = 0
+        row = self._background_section(body, 0)
         for title, section in SECTIONS:
             ttk.Label(body, text=title, style="Section.TLabel").grid(
-                row=row, column=0, columnspan=3, sticky="w", pady=(8 if row else 0, 4)
+                row=row, column=0, columnspan=3, sticky="w", pady=(8, 4)
             )
             row += 1
             toggles = [t for t in TOGGLES if t.section == section]
@@ -138,6 +146,7 @@ class SettingsWindow:
         root.bind("<Return>", lambda _e: self.save())
         root.bind("<Escape>", lambda _e: self.cancel())
 
+        self._refresh_background()
         self._poll_job = root.after(POLL_MS, self._poll)
         root.lift()
         root.attributes("-topmost", True)
@@ -145,6 +154,96 @@ class SettingsWindow:
         root.focus_force()
 
     # -- widgets ------------------------------------------------------------------------
+
+    def _background_section(self, parent, row: int) -> int:
+        import tkinter as tk
+        from tkinter import ttk
+
+        ttk.Label(parent, text="Fundo", style="Section.TLabel").grid(
+            row=row, column=0, columnspan=3, sticky="w", pady=(0, 4)
+        )
+        row += 1
+        self._kind = tk.StringVar(value=self.working.background.kind)
+        choices = ttk.Frame(parent)
+        choices.grid(row=row, column=0, columnspan=3, sticky="w")
+        for value, text in (("wave", "Onda animada"), ("media", "Imagem, GIF ou vídeo")):
+            ttk.Radiobutton(
+                choices, text=text, value=value, variable=self._kind, command=self._on_kind,
+            ).pack(side="left", padx=(0, 16))
+        row += 1
+
+        self._file_label = ttk.Label(parent, text="", width=44)
+        self._file_label.grid(row=row, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ttk.Button(parent, text="Escolher arquivo…", command=self._ask_file).grid(
+            row=row, column=2, sticky="e", pady=(6, 0)
+        )
+        row += 1
+
+        ttk.Label(parent, text="Encaixe").grid(row=row, column=0, sticky="w", pady=(6, 0))
+        self._fit = ttk.Combobox(
+            parent, state="readonly", width=30, values=[label for _, label in FIT_LABELS],
+        )
+        self._fit.grid(row=row, column=1, columnspan=2, sticky="w", pady=(6, 0))
+        self._fit.bind("<<ComboboxSelected>>", lambda _e: self._on_fit())
+        row += 1
+
+        self._media_hint = ttk.Label(parent, text="", style="Hint.TLabel", wraplength=460)
+        self._media_hint.grid(row=row, column=0, columnspan=3, sticky="w", pady=(2, 6))
+        return row + 1
+
+    def _refresh_background(self) -> None:
+        bg = self.working.background
+        media = bg.kind == "media"
+        self._kind.set(bg.kind)
+        self._file_label.configure(text=Path(bg.path).name if bg.path else "Nenhum arquivo escolhido")
+        self._fit.current([key for key, _ in FIT_LABELS].index(bg.fit))
+        self._fit.state(["!disabled" if media else "disabled", "readonly"])
+        problem = media_problem(bg.path) if media else None
+        if problem:
+            self._media_hint.configure(
+                text=problem + " A onda animada continua no lugar.", style="Error.TLabel"
+            )
+        else:
+            self._media_hint.configure(
+                text="A imagem cobre todos os monitores e segue o alinhamento. "
+                     "Animação e modo berimbau valem só para a onda.",
+                style="Hint.TLabel",
+            )
+        for section in WAVE_ONLY:
+            for widget in self._section_widgets.get(section, []):
+                widget.state(["disabled" if media else "!disabled"])
+
+    def _on_kind(self) -> None:
+        kind = self._kind.get()
+        if kind == "media" and not self.working.background.path:
+            if not self._ask_file():
+                self._kind.set("wave")
+            return  # _ask_file already applied the choice
+        self.working = with_background(self.working, kind=kind)
+        self._refresh_background()
+        self._schedule_preview()
+
+    def _ask_file(self) -> bool:
+        from tkinter import filedialog
+
+        current = self.working.background.path
+        path = filedialog.askopenfilename(
+            parent=self.root,
+            title="Escolha a imagem, GIF ou vídeo do fundo",
+            filetypes=MEDIA_FILETYPES,
+            initialdir=str(Path(current).parent) if current else str(Path.home() / "Pictures"),
+        )
+        if not path:
+            return False
+        self.working = with_background(self.working, path=str(Path(path)))
+        self._refresh_background()
+        self._schedule_preview()
+        return True
+
+    def _on_fit(self) -> None:
+        fit = FIT_LABELS[self._fit.current()][0]
+        self.working = with_background(self.working, fit=fit)
+        self._schedule_preview()
 
     def _slider(self, parent, f: Field, row: int) -> int:
         import tkinter as tk
@@ -154,10 +253,12 @@ class SettingsWindow:
         var = tk.DoubleVar(value=value)
         self._values[f.key] = var
         ttk.Label(parent, text=f.label).grid(row=row, column=0, sticky="w", padx=(0, 16))
-        ttk.Scale(
+        scale = ttk.Scale(
             parent, from_=f.minimum, to=f.maximum, variable=var, length=280,
             command=lambda v, f=f: self._on_slide(f, float(v)),
-        ).grid(row=row, column=1, sticky="ew")
+        )
+        scale.grid(row=row, column=1, sticky="ew")
+        self._section_widgets.setdefault(f.section, []).append(scale)
         label = ttk.Label(parent, text=format_value(f, value), width=6, anchor="e")
         label.grid(row=row, column=2, sticky="e")
         self._labels[f.key] = label
@@ -172,9 +273,11 @@ class SettingsWindow:
 
         var = tk.BooleanVar(value=get_toggle(self.working, t))
         self._toggles[t.key] = var
-        ttk.Checkbutton(
+        check = ttk.Checkbutton(
             parent, text=t.label, variable=var, command=lambda t=t: self._on_toggle(t),
-        ).grid(row=row, column=0, columnspan=3, sticky="w", pady=pady)
+        )
+        check.grid(row=row, column=0, columnspan=3, sticky="w", pady=pady)
+        self._section_widgets.setdefault(t.section, []).append(check)
         return row + 1
 
     def _set_icon(self) -> None:
@@ -195,6 +298,7 @@ class SettingsWindow:
             self._labels[f.key].configure(text=format_value(f, value))
         for t in TOGGLES:
             self._toggles[t.key].set(get_toggle(self.working, t))
+        self._refresh_background()
 
     # -- events -------------------------------------------------------------------------
 

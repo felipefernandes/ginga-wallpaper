@@ -38,6 +38,17 @@ class AudioSettings:
     sensitivity: float = 1.0   # multiplier on the analysed audio (0.3..3)
 
 
+BACKGROUND_KINDS = ("wave", "media")
+FITS = ("fill", "fit", "stretch")
+
+
+@dataclass
+class BackgroundSettings:
+    kind: str = "wave"   # "wave" (procedural) or "media" (image, GIF or video file)
+    path: str = ""       # media file; empty or unreadable falls back to the wave
+    fit: str = "fill"    # "fill" crops to cover, "fit" shows it all, "stretch" distorts
+
+
 @dataclass
 class Offset:
     x: int = 0
@@ -49,6 +60,7 @@ class Config:
     render: RenderSettings = field(default_factory=RenderSettings)
     wave: WaveSettings = field(default_factory=WaveSettings)
     audio: AudioSettings = field(default_factory=AudioSettings)
+    background: BackgroundSettings = field(default_factory=BackgroundSettings)
     # Calibration offset per monitor id (see layout.monitor_id).
     offsets: dict[str, Offset] = field(default_factory=dict)
 
@@ -91,12 +103,20 @@ def load_config(path: Path | None = None) -> Config:
         render=_fill(RenderSettings, data.get("render")),
         wave=_fill(WaveSettings, data.get("wave")),
         audio=_fill(AudioSettings, data.get("audio")),
+        background=_fill(BackgroundSettings, data.get("background")),
         offsets={
             str(key): _fill(Offset, value)
             for key, value in (data.get("offsets") or {}).items()
         },
     )
     cfg.render.fps = max(MIN_FPS, min(MAX_FPS, cfg.render.fps))
+    bg, defaults = cfg.background, BackgroundSettings()
+    if bg.kind not in BACKGROUND_KINDS:
+        log.warning("Ignoring unknown background kind %r", bg.kind)
+        bg.kind = defaults.kind
+    if bg.fit not in FITS:
+        log.warning("Ignoring unknown background fit %r", bg.fit)
+        bg.fit = defaults.fit
     return cfg
 
 

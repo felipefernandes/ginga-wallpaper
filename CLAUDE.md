@@ -38,6 +38,8 @@ Note: the user's global `python`/`pip` were cleaned up; create venvs with `py -3
 | `src/ginga/calibrate.py` + `guides.frag.glsl` | `CalibrationRenderer` (topmost, interactive `Renderer` subclass): canvas-space guide lines + Pillow-rendered HUD. Arrows move the *image* (Up = +y, what a physically lower monitor needs), Shift 10px, Tab, Space freezes the wave, Enter saves, Esc cancels |
 | `src/ginga/app.py` | Supervisor on the main thread: one renderer at a time (wallpaper or calibration), retries start (Explorer not ready at logon), recreates on `desktop_lost`; tray-facing methods are thread-safe |
 | `src/ginga/tray.py` + `__main__.py` | pystray menu in a background thread (PT-BR labels: Pausar, Configurações…, Alinhar monitores…, Sobre…, Sair; re-adds itself on Explorer restart; actions wrapped in `safe()` because pystray swallows exceptions; About box via MessageBoxW); entry point with named-mutex single instance and rotating log file |
+| `src/ginga/media.py` | Media wallpaper, pure-ish: `place`/`decode_size` (fill/fit/stretch on the canvas), `media_kind`, sources. Stills and GIFs are decoded once at canvas size (RGB, GIF frames cached up to 256 MB); video is a `Player` thread yielding YUV `Planes` (zero-copy views of PyAV frames), CUDA hwaccel with software fallback, loops by `seek(0)` (re-opening re-inits CUDA), wakes the renderer via `on_frame` |
+| `src/ginga/background.py` + `image.frag.glsl` | What the renderer draws: `WaveBackground` (continuous, uses audio) or `MediaBackground` (draws only on new frames/repaints; YUV->RGB in the shader with per-plane stride scale; two texture sets ping-pong, otherwise uploads stall: 4K went 24->28 fps). A file that cannot be shown falls back to the wave |
 | `src/ginga/settings.py` + `settings_ui.py` | Settings screen for non-technical users: pure slider model (`Field`, clamp/snap) + tkinter window on its own thread with live preview, Save/Cancel/Restore defaults. Never edits offsets: `App.update_settings` keeps the app's offsets, and calibration saves only offsets |
 | `src/ginga/audio.py` + `audio_capture.py` | "Modo berimbau": pure numpy `SpectrumAnalyzer` (FFT 4096, 128 log bands 40 Hz-16 kHz, tilt + auto-gain + silence gate, fast attack/slow release) and a WASAPI-loopback thread (`soundcard`) that drains the buffer ~30x/s (blocking reads busy-poll: 6% vs 1% CPU), follows default-device changes and stops whenever the wallpaper pauses. Shader effects are gated by `u_audio`; at 0 the output is pixel-identical to v1 |
 
@@ -58,10 +60,14 @@ v2.0 "modo berimbau" on `feat/v2-audio`: analysis, capture, shader, renderer, Se
 
 v2.1 installer on `feat/v2.1-installer`: `packaging/ginga.iss` (Inno Setup 6, per-user, `PrivilegesRequired=lowest`, fixed AppId for upgrades, `AppMutex=Local\ginga-wallpaper` so setup/uninstall close the running app, wipes `_internal` on upgrade). The "autostart" task writes the same HKCU Run value as `autostart.py`; an unticked task leaves it alone (Settings owns it); uninstall always deletes it and keeps `%APPDATA%\ginga`. `build_exe.py` finds ISCC via `$ISCC`, PATH or default installs (owner has it at `%LOCALAPPDATA%\Programs\Inno Setup 6`). Silent install/uninstall verified.
 
-Next: v3 (below).
+v2.1 released (tag `v2.1`, setup.exe + zip).
+
+v3.0 "your own wallpaper" on `feat/v3-wallpaper`: `[background]` config (kind wave/media, path, fit), Settings "Fundo" section (file picker, fit, wave/audio widgets disabled for media). Renderer draws a still image twice (both swap buffers) then idles; `request_repaint()` after layout/settings/resume. Measured on the owner's PC: still image 2 frames in 12 s; 1080p30 video ~29 fps at ~8% of a core (CUDA); 4K30 ~28 fps at ~23%; wave ~7%. `scripts/run_renderer.py --media FILE --fit ... --no-autopause` for such tests (the owner may be gaming: W2ViewportClass = Cyberpunk fullscreen pauses everything). PyAV adds ~65 MB (FFmpeg) to the bundle; setup.exe 44 MB.
+
+Next: roadmap done; ideas only (playlist/slideshow, per-monitor different images).
 
 ## Roadmap
 
 - v2: audio-reactive mode ("modo berimbau"): done (2.0).
 - v2.1: done. Inno Setup installer, per-user (`%LOCALAPPDATA%\Programs\ginga`, no admin) so the app appears in Settings > Apps with uninstall; Start Menu shortcut; optional autostart (uninstall removes the Run key); built from `scripts/build_exe.py`; zip stays as the portable option. MSIX needs code signing, so not now.
-- v3: load any wallpaper (static images first, then video/GIF) from Settings, spanning the monitors with the same calibration. This is the owner's original frustration: big wallpapers on physically misaligned monitors.
+- v3: done (3.0). Load any wallpaper (static images first, then video/GIF) from Settings, spanning the monitors with the same calibration. This is the owner's original frustration: big wallpapers on physically misaligned monitors.
